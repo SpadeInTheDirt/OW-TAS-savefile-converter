@@ -1,0 +1,2396 @@
+variables
+{
+	global:
+		0: bot
+		1: timer
+		2: recording
+		3: allButtons
+		4: runningFrameSum
+		5: frameSum
+		6: timelineFrameLength
+		7: visualizerFx
+		8: visualizerTxt
+		9: posBeforeUnspawn
+		10: inMenu
+		11: menuString
+		12: menuCurrItems
+		13: menuActions
+		14: menuHoverIndex
+		15: menuIncrementSign
+		16: selectedFrame
+		17: timelineOpen
+		18: thirdPersonCamOn
+		19: botInvisOn
+		20: menuValueLabels
+		21: recordSpeed
+		22: replaySpeed
+		23: tmpProgresBar
+		24: iVal1
+		25: iVal0
+		26: niVal0
+		27: editPrepFrames
+		28: requestTimelineUpdate
+		29: watchBotOnReplay
+		30: menuEnabled
+		31: heroBeforeBotHeroSelect
+		32: iVal2
+		33: timelineFrameAdvance
+		34: speedAtFrame
+		35: showData
+		36: tooltip
+		37: itemTooltips
+		38: facingBeforeUnspawn
+		39: disableAbilitiesInRecord
+		40: selectedFrameBeforeReplay
+		41: data
+		42: iVal3
+		43: iVal4
+		44: iVal5
+		45: iVal6
+		46: iVal7
+		47: iVal8
+		48: numbers
+		49: iVal9
+		50: iVal10
+		51: iVal11
+		52: iVal12
+
+	player:
+		0: throttles
+		1: throttleFrameCounts
+		2: facings
+		3: facingFrameCounts
+		4: initButtonStates
+		5: buttonsFrameCounts
+		6: weapon
+		7: lastButtonsState
+		8: weaponFrameCounts
+		9: attachee
+		10: buttonsState
+		11: preRefreshPos
+		12: preRefreshFace
+		13: selectedHero
+		14: doRefresh
+		15: totalFrames
+		16: replayFacingIndex
+		17: replayThrottleIndex
+		18: replayButtonsIndices
+		19: replayFacingLastFrame
+		20: replayThrottleLastFrame
+		21: replayButtonsLastFrames
+		22: replayFrameCounter
+		23: replaying
+		24: initFacing
+		25: initPos
+		26: iVal0
+		27: replayWeaponLastFrame
+		28: replayWeaponIndex
+}
+
+subroutines
+{
+	0: hostDisableAll
+	1: hostEnableAll
+	2: registerInputToBot
+	3: shadowInputToBot
+	4: destroyTimeline
+	5: initTimeline
+	6: populateTimeline
+	7: refreshBot
+	8: updateMenuString
+	9: beginRecordAtFrame
+	10: beginReplay
+	11: tpBotHere
+	12: tpToBot
+	13: changeHostHero
+	14: cutBotData
+	15: changeBot
+	16: tpBotToStart
+	17: createBotTeam1
+	18: exitMenu
+	19: changeValue
+	20: updateTimeline
+	21: createBotTeam2
+	22: getValue
+	23: removeBot
+	24: createBot
+	25: initData
+	26: changeBotHero
+	27: tpAllBotsToStart
+	28: goToFrame
+	29: beginRecord
+	30: beginReplayAtFrame
+	31: changeFrame
+	32: updateToolTip
+	33: createBotAllTeam
+	34: swapTeams
+	35: stopReplay
+	36: saveToGlobal
+	38: decompressVectors
+	39: convertTop8ToNum
+	104: loadData0
+	105: loadData1
+	106: loadData2
+	107: loadData3
+	108: loadData4
+	109: loadData5
+	110: loadData6
+	111: loadData7
+	112: loadData8
+	113: loadData9
+	114: loadData10
+	115: loadData11
+	116: loadData12
+	117: loadData13
+	118: loadData14
+	119: loadData15
+	120: loadData16
+	121: loadData17
+	122: loadData18
+	123: loadData19
+	124: loadData20
+	125: loadData21
+	126: loadData22
+	127: loadData23
+}
+
+rule("disable inspector")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Disable Inspector Recording;
+	}
+}
+
+rule("init global")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.numbers = Custom String("0123456789");
+		Global.allButtons = Array(Button(Primary Fire), Button(Secondary Fire), Button(Ability 1), Button(Ability 2), Button(Ultimate),
+			Button(Interact), Button(Jump), Button(Crouch), Button(Melee), Button(Reload));
+		disabled Disable Inspector Recording;
+		Global.visualizerFx = Empty Array;
+		Global.visualizerTxt = Empty Array;
+		Global.timelineOpen = False;
+		Global.thirdPersonCamOn = False;
+		Global.watchBotOnReplay = False;
+		Global.botInvisOn = True;
+		Global.recordSpeed = 10;
+		Global.replaySpeed = 100;
+		Global.editPrepFrames = 40;
+		Global.menuHoverIndex = 0;
+		Global.menuEnabled = True;
+		Global.timer = 100;
+		Global.disableAbilitiesInRecord = True;
+		Global.showData = True;
+		Global.timelineFrameAdvance = 50;
+		Global.timelineFrameLength = 440 / Global.timelineFrameAdvance;
+		Global.menuActions = Array(Custom String("replay"), Custom String("replay at frame"), Custom String("record from current bot pos"),
+			Custom String("record at frame"), Custom String(" \ntp all bots to start"), Custom String("tp bot to start"), Custom String(
+			"tp bot here"), Custom String("tp to bot"), Custom String(" \nchange hero"), Custom String("swap teams"), Custom String(
+			" \nAdd Bot Team 1"), Custom String("Add Bot Team 2"), Custom String("Add Bot Deathmatch"), Custom String("change bot hero"),
+			Custom String("Remove bot"), Custom String(" \nsave data to global"));
+		Global.menuValueLabels = Array(Custom String(" \nbot "), Custom String("selected frame "), Custom String(" \n3p Cam "),
+			Custom String("watch bot in replay"), Custom String("bot invis during edit "), Custom String(
+			"disable abilities while recording "), Custom String("show data "), Custom String("timeline next {0} frames ",
+			Global.timelineFrameAdvance), Custom String(" \nrecord speed "), Custom String("replay speed "));
+		Global.itemTooltips = Array(Custom String("play at replay speed \ninteract + reload stops replay"), Custom String(
+			"plays to frame normally \nthen slows to replay speed \ninteract + reload stops replay"), Custom String(
+			"record from bot's \ncurrent position \ninteract + reload stops record"), Custom String(
+			"plays to frame \nthen begins recording \ninteract + reload stops record"), Null, Null, Null, Null, Null, Null, Null, Null,
+			Null, Null, Null, Null, Null, Null, Null, Null, Null, Null, Custom String(
+			"Displays a timeline containing the \n{0} frames after selected frame", Global.timelineFrameAdvance), Null, Null);
+	}
+}
+
+disabled rule("init bots")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		"dumb bot"
+		Create Dummy Bot(Hero(Ana), Team 1, 1, Vector(-15.511, 0.574, -89.571), Vector(0, 0, 0));
+		Global.bot = Last Created Entity;
+	}
+}
+
+rule("skip asembling")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Assembling Heroes == True;
+	}
+
+	actions
+	{
+		Set Match Time(0);
+		Wait Until(Is In Setup, 99999);
+		Set Match Time(0);
+	}
+}
+
+rule("match time")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is Game In Progress == True;
+		Match Time < 3500;
+	}
+
+	actions
+	{
+		Set Match Time(3599);
+	}
+}
+
+rule("bot init")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Event Player.initFacing == False;
+		Has Spawned(Event Player) == Is Alive(Event Player);
+	}
+
+	actions
+	{
+		disabled Wait(0.016, Ignore Condition);
+		"init state"
+		Event Player.initFacing = Facing Direction Of(Event Player);
+		Event Player.initPos = Position Of(Event Player);
+		"init arrays"
+		Event Player.throttles = Array(Throttle Of(Host Player));
+		Event Player.throttleFrameCounts = Array(1);
+		"facing"
+		Event Player.facings = Array(Facing Direction Of(Host Player));
+		Event Player.facingFrameCounts = Array(1);
+		"weapon"
+		Event Player.weapon = Array(Weapon(Event Player));
+		Event Player.weaponFrameCounts = Array(1);
+		"input buttons"
+		Event Player.initButtonStates = Mapped Array(Global.allButtons, False);
+		Event Player.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(1));
+	}
+}
+
+rule("bot respawn")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Has Spawned(Event Player) == Is Alive(Event Player);
+	}
+
+	actions
+	{
+		If(Event Player.initFacing);
+			Teleport(Event Player, Event Player.initPos);
+			Set Facing(Event Player, Event Player.facings, To World);
+		End;
+		If(Event Player.selectedHero);
+			Start Forcing Player To Be Hero(Event Player, Event Player.selectedHero);
+		End;
+	}
+}
+
+rule("player spawn/resp")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == False;
+		Is Alive(Event Player) == Has Spawned(Event Player);
+	}
+
+	actions
+	{
+		Disable Movement Collision With Players(Event Player);
+		Set Status(Event Player, Null, Phased Out, 9999);
+		disabled Teleport(Event Player, Vector(-18.527, 0.574, -86.743));
+		Set Damage Dealt(Event Player, 0);
+		Set Knockback Dealt(Event Player, 0);
+	}
+}
+
+rule("fx")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create Progress Bar In-World Text(Global.showData && Global.timer < Evaluate Once(Global.editPrepFrames) ? Local Player : 0,
+			Update Every Frame(100 * Global.timer / Evaluate Once(Global.editPrepFrames)), Null, Update Every Frame(Eye Position(
+			Local Player) + 200 * Facing Direction Of(Local Player) + -100 * Normalize(Cross Product(Facing Direction Of(Local Player),
+			World Vector Of(Left, Local Player, Rotation)))), 1, Do Not Clip, Color(Yellow), Color(White),
+			Visible To Position Values and Color, Default Visibility);
+		Create HUD Text(Global.showData ? Local Player : 0, Custom String("{0} \n{1} \n{2}", Custom String("{0} fx {1} txt", Entity Count,
+			Text Count), Custom String("{0} ld {1} avg {2} pk", Server Load, Server Load Average, Server Load Peak), Custom String(
+			"{0} \n{1}", Custom String("{0} pos \n {1} facing \n {2} facing angles", Position Of(Local Player), Facing Direction Of(
+			Local Player), Custom String("({0}°, {1}°)", Horizontal Facing Angle Of(Local Player), Vertical Facing Angle Of(
+			Local Player))), Custom String("spd {0} hspd {1} vspd {2}", Speed Of(Local Player), Horizontal Speed Of(Local Player),
+			Vertical Speed Of(Local Player)))), Null, Null, Right, 0, Color(White), Color(White), Color(White), Visible To and String,
+			Default Visibility);
+		Create HUD Text(Global.showData ? Local Player : 0, Custom String("bot frame {0}", Global.bot.replayFrameCounter), Null, Null,
+			Right, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+		"frame indicator"
+		Create Icon(Global.showData ? Local Player : 0, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+			Local Player) + -30 * Normalize(Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player,
+			Rotation)))), Circle, Visible To Position and Color, Update Every Frame(Total Time Elapsed % 0.032 < 0.016 ? Custom Color(255,
+			0, 0, 255) : Custom Color(0, 255, 0, 255)), True);
+		"throttle indicator"
+		Create Beam Effect(Global.showData ? Local Player : Empty Array, Symmetra Projector Beam, Update Every Frame(0.500 * (Eye Position(
+			Global.bot) + Position Of(Global.bot))), Update Every Frame(0.500 * (Eye Position(Global.bot) + Position Of(Global.bot))
+			+ 5 * World Vector Of(Throttle Of(Global.bot), Global.bot, Rotation)), Team Of(Local Player),
+			Visible To Position Radius and Color);
+		"looking indicator"
+		Create Beam Effect(Global.showData ? Local Player : Empty Array, Torbjörn Turret Sight Beam, Update Every Frame(Eye Position(
+			Global.bot)), Update Every Frame(Eye Position(Global.bot) + 5 * Facing Direction Of(Global.bot)), Team Of(Local Player),
+			Visible To Position Radius and Color);
+		Create HUD Text(Global.inMenu ? Local Player : 0, Null, Global.menuString, Null, Top, 1, Color(White), Color(Lime Green), Color(
+			White), Visible To and String, Default Visibility);
+		Create HUD Text(Global.inMenu ? Local Player : 0, Null, Null, Global.tooltip, Left, 1, Color(Orange), Color(Orange), Color(Orange),
+			Visible To and String, Default Visibility);
+	}
+}
+
+disabled rule("RECORD AND REPLAY")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+}
+
+rule("record")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.recording == True;
+	}
+
+	actions
+	{
+		Set Weapon(Global.bot, Weapon(Host Player));
+		Set Facing(Host Player, Facing Direction Of(Global.bot), To World);
+		"tp and attach"
+		Teleport(Host Player, Position Of(Global.bot));
+		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
+		"for shadowing"
+		Global.bot.lastButtonsState = Mapped Array(Global.allButtons, False);
+		Global.bot.buttonsState = Global.bot.initButtonStates;
+		"recording; first frame was recorded in init so wait is before subroutine"
+		While(Global.recording);
+			Wait(0.016, Ignore Condition);
+			Global.bot.replayFrameCounter += 1;
+			Call Subroutine(registerInputToBot);
+			Call Subroutine(shadowInputToBot);
+		End;
+		"stop bot shadowing buttons"
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Stop Holding Button(Global.bot, Global.allButtons[Global.iVal0]);
+		End;
+		Stop Throttle In Direction(Global.bot);
+		Stop Facing(Global.bot);
+		"return everything to normal"
+		Detach Players(Host Player);
+		Global.bot.attachee = Null;
+		Call Subroutine(hostEnableAll);
+		Stop Forcing Player To Be Hero(Host Player);
+		Set Invisible(Global.bot, None);
+		Global.bot.totalFrames = Global.bot.replayFrameCounter;
+		If(Global.timelineOpen);
+			Call Subroutine(updateTimeline);
+		End;
+		Set Slow Motion(100);
+	}
+}
+
+rule("refresh bot on request")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.doRefresh == True;
+		disabled Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Call Subroutine(refreshBot);
+		Event Player.doRefresh = False;
+	}
+}
+
+rule("replay")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.replaying == True;
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		disabled Call Subroutine(refreshBot);
+		Teleport(Event Player, Event Player.initPos);
+		"index of current action value; current throttle, current facing etc."
+		Event Player.replayFacingIndex = 0;
+		Event Player.replayThrottleIndex = 0;
+		Event Player.replayButtonsIndices = Mapped Array(Global.allButtons, 0);
+		"last frame; when last + count <= current, change the action"
+		Event Player.replayFacingLastFrame = 0;
+		Event Player.replayThrottleLastFrame = 0;
+		Event Player.replayButtonsLastFrames = Mapped Array(Global.allButtons, 0);
+		Event Player.replayWeaponLastFrame = 0;
+		Event Player.replayWeaponIndex = 0;
+		"frame counter"
+		Event Player.replayFrameCounter = 0;
+		"init button states"
+		Event Player.buttonsState = Event Player.initButtonStates;
+		"init start holding buttons"
+		For Player Variable(Event Player, iVal0, 0, Count Of(Global.allButtons), 1);
+			If(Event Player.initButtonStates[Event Player.iVal0]);
+				Start Holding Button(Event Player, Global.allButtons[Event Player.iVal0]);
+			End;
+		End;
+		"throttle and facing"
+		Start Throttle In Direction(Event Player, Event Player.throttles[Event Player.replayThrottleIndex], Magnitude Of(
+			Event Player.throttles[Event Player.replayThrottleIndex]), To Player, Replace existing throttle, Direction and Magnitude);
+		Start Facing(Event Player, Event Player.facings[Event Player.replayFacingIndex], 10000, To World, Direction and Turn Rate);
+		Set Weapon(Event Player, First Of(Event Player.weapon));
+		"replay loop"
+		While(Event Player.replaying);
+			Wait(0.016, Ignore Condition);
+			Event Player.replayFrameCounter += 1;
+			If(
+				Event Player.replayThrottleLastFrame + Event Player.throttleFrameCounts[Event Player.replayThrottleIndex] <= Event Player.replayFrameCounter);
+				Event Player.replayThrottleIndex += 1;
+				Event Player.replayThrottleLastFrame = Event Player.replayFrameCounter;
+				If(Event Player.replayThrottleIndex >= Count Of(Event Player.throttles));
+					Break;
+				End;
+			End;
+			If(
+				Event Player.replayFacingLastFrame + Event Player.facingFrameCounts[Event Player.replayFacingIndex] <= Event Player.replayFrameCounter);
+				Event Player.replayFacingIndex += 1;
+				Event Player.replayFacingLastFrame = Event Player.replayFrameCounter;
+			End;
+			If(
+				Event Player.replayWeaponLastFrame + Event Player.weaponFrameCounts[Event Player.replayWeaponIndex] <= Event Player.replayFrameCounter);
+				Event Player.replayWeaponIndex += 1;
+				Event Player.replayWeaponLastFrame = Event Player.replayFrameCounter;
+				Set Weapon(Event Player, Event Player.weapon[Event Player.replayWeaponIndex]);
+			End;
+			"change states"
+			For Player Variable(Event Player, iVal0, 0, Count Of(Global.allButtons), 1);
+				"if the current frame is past the frame count + last remembered frame for the button"
+				If(
+					Event Player.buttonsFrameCounts[Event Player.iVal0][Event Player.replayButtonsIndices[Event Player.iVal0]] + Event Player.replayButtonsLastFrames[Event Player.iVal0] <= Event Player.replayFrameCounter);
+					"flip the button's state"
+					Event Player.buttonsState[Event Player.iVal0] = !Event Player.buttonsState[Event Player.iVal0];
+					"change hold/release accordingly"
+					If(Event Player.buttonsState[Event Player.iVal0]);
+						Start Holding Button(Event Player, Global.allButtons[Event Player.iVal0]);
+					Else;
+						Stop Holding Button(Event Player, Global.allButtons[Event Player.iVal0]);
+					End;
+					"flip the button's state"
+					Event Player.replayButtonsIndices[Event Player.iVal0] += 1;
+					"flip the button's state"
+					Event Player.replayButtonsLastFrames[Event Player.iVal0] = Event Player.replayFrameCounter;
+				End;
+			End;
+		End;
+		"stop bot shadowing buttons"
+		For Player Variable(Event Player, iVal0, 0, Count Of(Global.allButtons), 1);
+			Stop Holding Button(Event Player, Global.allButtons[Event Player.iVal0]);
+		End;
+		Stop Throttle In Direction(Event Player);
+		Stop Facing(Event Player);
+		Event Player.replaying = False;
+		If(Global.timelineOpen);
+			Global.requestTimelineUpdate = True;
+		End;
+	}
+}
+
+rule("register input to bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		registerInputToBot;
+	}
+
+	actions
+	{
+		"WEAPON"
+		If(Last Of(Global.bot.weapon) == Weapon(Host Player));
+			Global.bot.weaponFrameCounts[Count Of(Global.bot.weaponFrameCounts) - 1] += 1;
+		Else;
+			Modify Player Variable(Global.bot, weapon, Append To Array, Weapon(Host Player));
+			Modify Player Variable(Global.bot, weaponFrameCounts, Append To Array, 1);
+			Log To Inspector(Custom String("weapon to {1} frame {2}", Global.allButtons[Global.iVal0], Weapon(Host Player),
+				Global.bot.replayFrameCounter));
+		End;
+		"THROTTLE"
+		If(Last Of(Global.bot.throttles) == Throttle Of(Host Player));
+			Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts) - 1] += 1;
+		Else;
+			Modify Player Variable(Global.bot, throttles, Append To Array, Throttle Of(Host Player));
+			Modify Player Variable(Global.bot, throttleFrameCounts, Append To Array, 1);
+			Log To Inspector(Custom String("throttle to {1} frame {2}", Global.allButtons[Global.iVal0], Throttle Of(Host Player),
+				Global.bot.replayFrameCounter));
+		End;
+		"FACING"
+		If(Last Of(Global.bot.facings) == Facing Direction Of(Host Player));
+			Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts) - 1] += 1;
+		Else;
+			Modify Player Variable(Global.bot, facings, Append To Array, Facing Direction Of(Host Player));
+			Modify Player Variable(Global.bot, facingFrameCounts, Append To Array, 1);
+			Log To Inspector(Custom String("facing to {1} frame {2}", Global.allButtons[Global.iVal0], Throttle Of(Host Player),
+				Global.bot.replayFrameCounter));
+		End;
+		"BUTTONS"
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			"if match, continue count for button, else start a new count"
+			If(Global.bot.buttonsState[Global.iVal0] == Is Button Held(Host Player, Global.allButtons[Global.iVal0]));
+				Global.iVal1 = Global.bot.buttonsFrameCounts[Global.iVal0];
+				Global.iVal1[Count Of(Global.iVal1) - 1] += 1;
+				Global.bot.buttonsFrameCounts[Global.iVal0] = Global.iVal1;
+			Else;
+				Modify Player Variable At Index(Global.bot, buttonsFrameCounts, Global.iVal0, Append To Array, 1);
+				Log To Inspector(Custom String("{0} {1} frame {2}", Global.allButtons[Global.iVal0], Is Button Held(Host Player,
+					Global.allButtons[Global.iVal0]), Global.bot.replayFrameCounter));
+			End;
+		End;
+		"update button state"
+		Global.bot.buttonsState = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+	}
+}
+
+rule("shadow input to bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		shadowInputToBot;
+	}
+
+	actions
+	{
+		Set Weapon(Global.bot, Weapon(Host Player));
+		Start Throttle In Direction(Global.bot, Throttle Of(Host Player), Magnitude Of(Throttle Of(Host Player)), To Player,
+			Replace existing throttle, None);
+		Set Facing(Global.bot, Facing Direction Of(Host Player), To World);
+		Global.bot.buttonsState = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		"if state changed for a button, stop/start holding it accordingly"
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			If(Global.bot.buttonsState[Global.iVal0] != Global.bot.lastButtonsState[Global.iVal0]);
+				If(Global.bot.buttonsState[Global.iVal0]);
+					disabled Small Message(All Players(All Teams), Custom String("qwasda"));
+					Start Holding Button(Global.bot, Global.allButtons[Global.iVal0]);
+				Else;
+					disabled Small Message(All Players(All Teams), Custom String("agagae"));
+					Stop Holding Button(Global.bot, Global.allButtons[Global.iVal0]);
+				End;
+			End;
+		End;
+		Global.bot.lastButtonsState = Global.bot.buttonsState;
+	}
+}
+
+disabled rule("TIMELINE")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+}
+
+rule("timeline on/off control")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.timelineOpen == True;
+	}
+
+	actions
+	{
+		Call Subroutine(updateTimeline);
+		Wait Until(!Global.timelineOpen, 99999);
+		Call Subroutine(destroyTimeline);
+	}
+}
+
+rule("timeline request update system")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.requestTimelineUpdate == True;
+	}
+
+	actions
+	{
+		Call Subroutine(updateTimeline);
+		Global.requestTimelineUpdate = False;
+		Wait(0.256, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("update visualizer SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		updateTimeline;
+	}
+
+	actions
+	{
+		Call Subroutine(destroyTimeline);
+		Call Subroutine(initTimeline);
+		Call Subroutine(populateTimeline);
+	}
+}
+
+rule("destroy visualizer SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		destroyTimeline;
+	}
+
+	actions
+	{
+		Destroy Effect(Global.visualizerFx);
+		For Global Variable(iVal0, 0, Count Of(Global.visualizerTxt), 1);
+			Destroy In-World Text(Global.visualizerTxt[Global.iVal0]);
+		End;
+		Global.visualizerFx = Empty Array;
+		Global.visualizerTxt = Empty Array;
+	}
+}
+
+rule("init visualizer SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		initTimeline;
+	}
+}
+
+rule("populate visualizer SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		populateTimeline;
+	}
+
+	actions
+	{
+		Global.iVal1 = Global.selectedFrame + Global.timelineFrameAdvance;
+		"get frame sum"
+		Global.frameSum = Global.bot.totalFrames;
+		Global.runningFrameSum = Global.frameSum;
+		"place iwts for throttle; color accordingly"
+		For Global Variable(iVal0, Count Of(Global.bot.throttleFrameCounts) - 1, -1, -1);
+			Global.runningFrameSum -= Global.bot.throttleFrameCounts[Global.iVal0];
+			"place the leftmost pip"
+			If(Global.runningFrameSum <= Global.selectedFrame);
+				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(
+					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
+					X Component Of(Global.bot.throttles[Global.iVal0]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Global.iVal0]) + 1)
+					* 127.500, 255), Default Visibility);
+				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+				Break;
+			Else If(Global.runningFrameSum < Global.iVal1);
+				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
+					* World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(Local Player),
+					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
+					Global.bot.throttles[Global.iVal0]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Global.iVal0]) + 1) * 127.500,
+					255), Default Visibility);
+				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+			End;
+		End;
+		Global.runningFrameSum = Global.frameSum;
+		For Global Variable(iVal0, Count Of(Global.bot.facingFrameCounts) - 1, -1, -1);
+			Global.runningFrameSum -= Global.bot.facingFrameCounts[Global.iVal0];
+			"place the leftmost pip"
+			If(Global.runningFrameSum <= Global.selectedFrame);
+				"cant be bothered"
+				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(
+					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
+					X Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1)
+					* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+				Break;
+			Else If(Global.runningFrameSum < Global.iVal1);
+				"cant be bothered"
+				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
+					* World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(Local Player),
+					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
+					Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (
+					Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+			End;
+		End;
+		"place frame scrubber"
+		Create In-World Text(
+			Global.bot.replayFrameCounter >= Global.selectedFrame && Global.bot.replayFrameCounter < Global.selectedFrame + 50 ? Local Player : 0,
+			Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(Local Player) + (
+			220 - Global.timelineFrameLength * (Global.bot.replayFrameCounter - Global.selectedFrame)) * World Vector Of(Left,
+			Local Player, Rotation) + -80 * Normalize(Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player,
+			Rotation)))), 4, Do Not Clip, Visible To and Position, Color(White), Default Visibility);
+		Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+		"cant be bothered"
+		Create In-World Text(Local Player, Custom String("{0}", Global.selectedFrame), Update Every Frame(Eye Position(Local Player)
+			+ 200 * Facing Direction Of(Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -90 * Normalize(
+			Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip,
+			Visible To and Position, Color(Yellow), Default Visibility);
+		Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+		"cant be bothered"
+		Create In-World Text(Local Player, Custom String("{0}", Min(Global.bot.totalFrames,
+			Global.timelineFrameAdvance + Global.selectedFrame)), Update Every Frame(Eye Position(Local Player)
+			+ 200 * Facing Direction Of(Local Player) + Evaluate Once(220 - Min(Global.bot.totalFrames - Global.selectedFrame,
+			Global.timelineFrameAdvance) * Global.timelineFrameLength) * World Vector Of(Left, Local Player, Rotation) + -90 * Normalize(
+			Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip,
+			Visible To and Position, Color(Yellow), Default Visibility);
+		Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+	}
+}
+
+rule("keep up with replay - replay frame past upper bound")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.timelineOpen == True;
+		Global.bot.replaying == True;
+		Update Every Frame(Global.bot.replayFrameCounter) >= Global.selectedFrame + Global.timelineFrameAdvance;
+	}
+
+	actions
+	{
+		"idk why i need to subtract 1 some tick off by 1 bs"
+		Global.selectedFrame = Global.bot.replayFrameCounter - 1;
+		Global.requestTimelineUpdate = True;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("keep up with replay - replay frame before lower bound")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.timelineOpen == True;
+		Global.bot.replaying == True;
+		Update Every Frame(Global.bot.replayFrameCounter) < Global.selectedFrame;
+	}
+
+	actions
+	{
+		Global.selectedFrame = Global.bot.replayFrameCounter;
+		Global.requestTimelineUpdate = True;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+disabled rule("MENU")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+}
+
+rule("enter menu")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Host Player == True;
+		Global.inMenu == False;
+		Global.menuEnabled == True;
+		Is Button Held(Host Player, Button(Interact)) == True;
+		disabled Is Button Held(Host Player, Button(Reload)) == False;
+	}
+
+	actions
+	{
+		Create Progress Bar HUD Text(All Players(All Teams), Update Every Frame(100 * (Total Time Elapsed - Evaluate Once(
+			Total Time Elapsed)) / 0.250), Null, Top, 0, Color(Purple), Color(Purple), Visible To and Values, Default Visibility);
+		Global.tmpProgresBar = Last Text ID;
+		Wait Until(!Is Button Held(Host Player, Button(Interact)), 0.250);
+		Destroy Progress Bar HUD Text(Global.tmpProgresBar);
+		If(!Is Button Held(Host Player, Button(Interact)));
+			Abort;
+		End;
+		Play Effect(All Players(All Teams), Buff Impact Sound, Color(White), Position Of(Host Player), 100);
+		Global.inMenu = True;
+		Call Subroutine(hostDisableAll);
+		Call Subroutine(updateMenuString);
+		Wait Until(!Global.inMenu || !Is Button Held(Host Player, Button(Interact)), 99999);
+		Wait Until(!Global.inMenu || Is Button Held(Host Player, Button(Interact)), 99999);
+		If(Global.inMenu);
+			Call Subroutine(exitMenu);
+			Wait(0.016, Ignore Condition);
+		End;
+	}
+}
+
+rule("menu up")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Z Component Of(Throttle Of(Host Player)) > 0.300;
+	}
+
+	actions
+	{
+		If(Global.inMenu);
+			Global.menuHoverIndex = (Global.menuHoverIndex + (Count Of(Global.menuCurrItems) - 1)) % Count Of(Global.menuCurrItems);
+			Call Subroutine(updateMenuString);
+			Wait(0.500, Abort When False);
+			While(True);
+				Global.menuHoverIndex = (Global.menuHoverIndex + (Count Of(Global.menuCurrItems) - 1)) % Count Of(Global.menuCurrItems);
+				Call Subroutine(updateMenuString);
+				Wait(0.032, Abort When False);
+			"while loop ends here"
+			End;
+		End;
+	}
+}
+
+rule("menu down")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Z Component Of(Throttle Of(Host Player)) < -0.300;
+	}
+
+	actions
+	{
+		If(Global.inMenu);
+			Global.menuHoverIndex = (Global.menuHoverIndex + 1) % Count Of(Global.menuCurrItems);
+			Call Subroutine(updateMenuString);
+			Wait(0.500, Abort When False);
+			While(True);
+				Global.menuHoverIndex = (Global.menuHoverIndex + 1) % Count Of(Global.menuCurrItems);
+				Call Subroutine(updateMenuString);
+				Wait(0.032, Abort When False);
+			"while loop ends here"
+			End;
+		End;
+	}
+}
+
+rule("menu activate")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.recording == False;
+		Is Button Held(Host Player, Button(Jump)) == True;
+	}
+
+	actions
+	{
+		If(!Global.inMenu);
+			Abort;
+		End;
+		"switch statement"
+		Skip(2 * Global.menuHoverIndex);
+		Call Subroutine(beginReplay);
+		Else;
+		Call Subroutine(beginReplayAtFrame);
+		Else;
+		Call Subroutine(beginRecord);
+		Else;
+		Call Subroutine(beginRecordAtFrame);
+		Else;
+		Call Subroutine(tpAllBotsToStart);
+		Else;
+		Call Subroutine(tpBotToStart);
+		Else;
+		Call Subroutine(tpBotHere);
+		Else;
+		Call Subroutine(tpToBot);
+		Else;
+		Call Subroutine(changeHostHero);
+		Else;
+		Call Subroutine(swapTeams);
+		Else;
+		Call Subroutine(createBotTeam1);
+		Else;
+		Call Subroutine(createBotTeam2);
+		disabled Else;
+		disabled Call Subroutine(createBotAllTeam);
+		Else;
+		Call Subroutine(changeBotHero);
+		Else;
+		Call Subroutine(removeBot);
+		Else;
+		Call Subroutine(saveToGlobal);
+		End;
+	}
+}
+
+rule("menu change val")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		disabled Global.inMenu == True;
+		Absolute Value(X Component Of(Throttle Of(Host Player))) > 0.300;
+	}
+
+	actions
+	{
+		If(!Global.inMenu);
+			Abort;
+		End;
+		If(Global.menuHoverIndex >= Count Of(Global.menuActions));
+			If(X Component Of(Throttle Of(Host Player)) < 0);
+				Global.menuIncrementSign = 1;
+			Else;
+				Global.menuIncrementSign = -1;
+			End;
+			Call Subroutine(changeValue);
+			Wait(0.500, Abort When False);
+			While(Global.menuIncrementSign * X Component Of(Throttle Of(Host Player)) < -0.300);
+				Call Subroutine(changeValue);
+				Wait(0.032, Ignore Condition);
+			"while loop ends here"
+			End;
+		End;
+	}
+}
+
+rule("menu refresh text SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		updateMenuString;
+	}
+
+	actions
+	{
+		Global.menuString = Custom String("");
+		Global.menuCurrItems = Global.menuActions;
+		For Global Variable(iVal0, 0, Count Of(Global.menuValueLabels), 1);
+			"uses iVal0 as input, outputs iVal1"
+			Call Subroutine(getValue);
+			Modify Global Variable(menuCurrItems, Append To Array, Custom String("{0}{1}", Global.menuValueLabels[Global.iVal0],
+				Global.iVal1));
+		End;
+		For Global Variable(iVal0, Count Of(Global.menuCurrItems) - 1, -1, -1);
+			If(Global.menuHoverIndex == Global.iVal0);
+				Global.menuString = Custom String("{0} {1} \n{2}", Global.menuCurrItems[Global.iVal0], Icon String(Arrow: Left),
+					Global.menuString);
+				disabled Global.menuString = Custom String("{0} < \n{1}", Global.menuCurrItems[Global.iVal0], Global.menuString);
+			Else;
+				Global.menuString = Custom String("{0} \n{1}", Global.menuCurrItems[Global.iVal0], Global.menuString);
+			End;
+		End;
+		Global.menuString = String Slice(Global.menuString, 0, String Length(Global.menuString) - 1);
+		Call Subroutine(updateToolTip);
+	}
+}
+
+rule("update tool tip SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		updateToolTip;
+	}
+
+	actions
+	{
+		Global.tooltip = Custom String("interact to exit menu");
+		If(Global.menuHoverIndex < Count Of(Global.menuActions));
+			Global.tooltip = Custom String("{0} \nJump To activate", Global.tooltip);
+		Else;
+			Global.tooltip = Custom String("{0} \npress/hold {1} and {2} To change", Global.tooltip, Icon String(Arrow: Left), Icon String(
+				Arrow: Right));
+		End;
+		Global.iVal0 = Global.itemTooltips[Global.menuHoverIndex];
+		If(Global.iVal0);
+			Global.tooltip = Custom String("{0} \n \n{1}", Global.tooltip, Global.iVal0);
+		End;
+	}
+}
+
+rule("exit menu SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		exitMenu;
+	}
+
+	actions
+	{
+		Global.inMenu = False;
+		Call Subroutine(hostEnableAll);
+	}
+}
+
+rule("change value SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeValue;
+	}
+
+	actions
+	{
+		"switch statement"
+		Skip(2 * Max(Global.menuHoverIndex - Count Of(Global.menuActions) + 1, 0));
+		"do nothing"
+		Continue;
+		Else;
+		Call Subroutine(changeBot);
+		Else;
+		Call Subroutine(changeFrame);
+		Else;
+		Global.thirdPersonCamOn = !Global.thirdPersonCamOn;
+		Else;
+		Global.watchBotOnReplay = !Global.watchBotOnReplay;
+		Else;
+		Global.botInvisOn = !Global.botInvisOn;
+		Else;
+		Global.disableAbilitiesInRecord = !Global.disableAbilitiesInRecord;
+		Else;
+		Global.showData = !Global.showData;
+		Else;
+		Global.timelineOpen = !Global.timelineOpen;
+		Else;
+		Global.recordSpeed = (Global.recordSpeed - 10 + 100 + 10 * Global.menuIncrementSign) % 100 + 10;
+		Else;
+		Global.replaySpeed = (Global.replaySpeed - 10 + 100 + 10 * Global.menuIncrementSign) % 100 + 10;
+		End;
+		Call Subroutine(updateMenuString);
+	}
+}
+
+rule("get value SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		getValue;
+	}
+
+	actions
+	{
+		"switch statement"
+		Skip(2 * Global.iVal0);
+		Global.iVal1 = Entity Exists(Global.bot) ? Custom String("{0} {1} slot {2}", Team Of(Global.bot) == Team 1 ? Custom String("T1")
+			: (Team Of(Global.bot) == Team 2 ? Custom String("T2") : Custom String("DM")), Hero Icon String(Hero Of(Global.bot)), Slot Of(
+			Global.bot)) : Custom String("unselected");
+		Else;
+		Global.iVal1 = Custom String("{0}/{1}", Global.selectedFrame, Global.bot.totalFrames - 1);
+		Else;
+		Global.iVal1 = Global.thirdPersonCamOn ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.watchBotOnReplay ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.botInvisOn ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.disableAbilitiesInRecord ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.showData ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.timelineOpen ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.recordSpeed;
+		Else;
+		Global.iVal1 = Global.replaySpeed;
+		End;
+	}
+}
+
+rule("begin replay SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		beginReplay;
+	}
+
+	actions
+	{
+		Global.selectedFrameBeforeReplay = Global.selectedFrame;
+		If(Global.watchBotOnReplay);
+			disabled If(Global.thirdPersonCamOn);
+			Start Camera(Host Player, Update Every Frame(Ray Cast Hit Position(Eye Position(Global.bot), Eye Position(Global.bot)
+				+ -3.500 * Facing Direction Of(Host Player), Empty Array, Empty Array, False)), Update Every Frame(Eye Position(Global.bot)),
+				0);
+			disabled Else;
+			disabled Start Camera(Host Player, Update Every Frame(Eye Position(Global.bot)), Update Every Frame(Eye Position(Global.bot)
+				+ Facing Direction Of(Global.bot)), 0);
+			disabled End;
+		End;
+		Call Subroutine(exitMenu);
+		"wait for slow motion to reach full speed"
+		Set Slow Motion(Global.replaySpeed);
+		Global.timer = 0;
+		Call Subroutine(tpAllBotsToStart);
+		Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+		Wait(0.016 * Global.editPrepFrames, Ignore Condition);
+		Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).replaying = True;
+		Wait Until(Is True For All(All Players(All Teams), !Current Array Element.replaying) || !(Is Button Held(Host Player, Button(
+			Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		Wait Until(Is True For All(All Players(All Teams), !Current Array Element.replaying) || (Is Button Held(Host Player, Button(
+			Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		All Players(All Teams).replaying = False;
+		"wait for slow motion to reach full speed"
+		Set Slow Motion(100);
+		Global.iVal0 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		For Global Variable(iVal1, 0, Count Of(Global.iVal0), 1);
+			Teleport(Global.iVal1[Global.iVal0], Global.iVal0[Global.iVal1].initPos);
+			Set Facing(Global.iVal1[Global.iVal0], Global.iVal0[Global.iVal1].initFacing, To World);
+		End;
+		Stop Camera(Host Player);
+		If(Global.thirdPersonCamOn);
+			Start Camera(Host Player, Update Every Frame(Ray Cast Hit Position(Eye Position(Host Player), Eye Position(Host Player)
+				+ -3.500 * Facing Direction Of(Host Player), Empty Array, Empty Array, False)), Update Every Frame(Eye Position(Host Player)),
+				0);
+		End;
+		Global.selectedFrame = Global.selectedFrameBeforeReplay;
+		If(Global.timelineOpen);
+			Global.requestTimelineUpdate = True;
+		End;
+	}
+}
+
+rule("begin replay at frame SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		beginReplayAtFrame;
+	}
+
+	actions
+	{
+		Global.selectedFrameBeforeReplay = Global.selectedFrame;
+		If(Global.watchBotOnReplay);
+			Start Camera(Host Player, Update Every Frame(Ray Cast Hit Position(Eye Position(Global.bot), Eye Position(Global.bot)
+				+ -3.500 * Facing Direction Of(Host Player), Empty Array, Empty Array, False)), Update Every Frame(Eye Position(Global.bot)),
+				0);
+		End;
+		Call Subroutine(exitMenu);
+		Call Subroutine(tpAllBotsToStart);
+		"if framestart is 0, init everything, refresh bot, set slomo, wait for prep"
+		If(Global.selectedFrame == 0);
+			"wait for slow motion to reach full speed"
+			Set Slow Motion(Global.replaySpeed);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+			Wait(0.016 * Global.editPrepFrames, Ignore Condition);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).replaying = True;
+		Else;
+			Global.speedAtFrame = Global.replaySpeed;
+			Call Subroutine(goToFrame);
+		End;
+		Wait Until(Is True For All(All Players(All Teams), !Current Array Element.replaying) || !(Is Button Held(Host Player, Button(
+			Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		Wait Until(Is True For All(All Players(All Teams), !Current Array Element.replaying) || (Is Button Held(Host Player, Button(
+			Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		All Players(All Teams).replaying = False;
+		"wait for slow motion to reach full speed"
+		Set Slow Motion(100);
+		Global.iVal0 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		For Global Variable(iVal1, 0, Count Of(Global.iVal0), 1);
+			Teleport(Global.iVal1[Global.iVal0], Global.iVal0[Global.iVal1].initPos);
+			Set Facing(Global.iVal1[Global.iVal0], Global.iVal0[Global.iVal1].initFacing, To World);
+		End;
+		Stop Camera(Host Player);
+		If(Global.thirdPersonCamOn);
+			Start Camera(Host Player, Update Every Frame(Ray Cast Hit Position(Eye Position(Host Player), Eye Position(Host Player)
+				+ -3.500 * Facing Direction Of(Host Player), Empty Array, Empty Array, False)), Update Every Frame(Eye Position(Host Player)),
+				0);
+		End;
+		Global.selectedFrame = Global.selectedFrameBeforeReplay;
+		If(Global.timelineOpen);
+			Global.requestTimelineUpdate = True;
+		End;
+	}
+}
+
+rule("stop replay SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		stopReplay;
+	}
+
+	actions
+	{
+		"wait for slow motion to reach full speed"
+		Set Slow Motion(100);
+		All Players(All Teams).replaying = False;
+		Wait(0.016, Ignore Condition);
+	}
+}
+
+rule("begin record SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		beginRecord;
+	}
+
+	actions
+	{
+		Create Progress Bar HUD Text(All Players(All Teams), Update Every Frame(100 * (Total Time Elapsed - Evaluate Once(
+			Total Time Elapsed)) / 0.500), Null, Top, 0, Color(Purple), Color(Purple), Visible To and Values, Default Visibility);
+		Global.tmpProgresBar = Last Text ID;
+		Wait Until(!Is Button Held(Host Player, Button(Jump)), 0.500);
+		Destroy Progress Bar HUD Text(Global.tmpProgresBar);
+		If(!Is Button Held(Host Player, Button(Jump)));
+			Abort;
+		End;
+		"wait for slow motion to reach full speed"
+		Set Slow Motion(100);
+		All Players(All Teams).replaying = False;
+		Call Subroutine(tpAllBotsToStart);
+		Wait(0.016, Ignore Condition);
+		Call Subroutine(exitMenu);
+		"disable inputs"
+		If(Global.disableAbilitiesInRecord);
+			Call Subroutine(hostDisableAll);
+		End;
+		Call Subroutine(destroyTimeline);
+		Global.menuEnabled = False;
+		Start Facing(Host Player, Facing Direction Of(Global.bot), 9999, To World, Direction and Turn Rate);
+		"tp and attach"
+		Teleport(Host Player, Position Of(Global.bot));
+		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
+		Global.bot.attachee = Host Player;
+		If(Global.botInvisOn);
+			Set Invisible(Global.bot, All);
+		End;
+		Start Forcing Player To Be Hero(Host Player, Hero Of(Global.bot));
+		Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+		Set Slow Motion(Global.recordSpeed);
+		Global.timer = 0;
+		Wait(0.016 * Global.editPrepFrames, Ignore Condition);
+		Stop Facing(Host Player);
+		Call Subroutine(exitMenu);
+		"disable inputs"
+		If(Global.disableAbilitiesInRecord);
+			Call Subroutine(hostDisableAll);
+		End;
+		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
+		Global.bot.replayFrameCounter = 0;
+		"init state"
+		Global.bot.initFacing = Facing Direction Of(Host Player);
+		Global.bot.initPos = Position Of(Global.bot);
+		"init arrays"
+		Global.bot.throttles = Array(Throttle Of(Host Player));
+		Global.bot.throttleFrameCounts = Array(1);
+		"facing"
+		Global.bot.facings = Array(Facing Direction Of(Host Player));
+		Global.bot.facingFrameCounts = Array(1);
+		"weapon"
+		Global.bot.weapon = Array(Weapon(Host Player));
+		Global.bot.weaponFrameCounts = Array(1);
+		"input buttons"
+		Global.bot.initButtonStates = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		Global.bot.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(1));
+		Global.bot.replaying = False;
+		Global.recording = True;
+		Remove From Array(Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)), Global.bot).replaying = True;
+		Wait Until(!(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		Wait Until(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload)), 99999);
+		All Players(All Teams).replaying = False;
+		Global.recording = False;
+		Global.menuEnabled = True;
+	}
+}
+
+rule("begin record at frame SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		beginRecordAtFrame;
+	}
+
+	actions
+	{
+		Create Progress Bar HUD Text(All Players(All Teams), Update Every Frame(100 * (Total Time Elapsed - Evaluate Once(
+			Total Time Elapsed)) / 0.500), Null, Top, 0, Color(Purple), Color(Purple), Visible To and Values, Default Visibility);
+		Global.tmpProgresBar = Last Text ID;
+		Wait Until(!Is Button Held(Host Player, Button(Jump)), 0.500);
+		Destroy Progress Bar HUD Text(Global.tmpProgresBar);
+		If(!Is Button Held(Host Player, Button(Jump)));
+			Abort;
+		End;
+		Call Subroutine(tpAllBotsToStart);
+		"reset to full speed"
+		Set Slow Motion(100);
+		All Players(All Teams).replaying = False;
+		Wait(0.016, Ignore Condition);
+		Call Subroutine(exitMenu);
+		"disable inputs"
+		If(Global.disableAbilitiesInRecord);
+			Call Subroutine(hostDisableAll);
+		End;
+		Call Subroutine(destroyTimeline);
+		Global.menuEnabled = False;
+		Start Facing(Host Player, Facing Direction Of(Global.bot), 9999, To World, Direction and Turn Rate);
+		"tp and attach"
+		Teleport(Host Player, Position Of(Global.bot));
+		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
+		Global.bot.attachee = Host Player;
+		If(Global.botInvisOn);
+			Set Invisible(Global.bot, All);
+		End;
+		Start Forcing Player To Be Hero(Host Player, Hero Of(Global.bot));
+		"if framestart is 0, init everything, refresh bot, set slomo, wait for prep"
+		If(Global.selectedFrame == 0);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+			Call Subroutine(tpBotToStart);
+			Global.timer = 0;
+			Set Slow Motion(Global.recordSpeed);
+			Wait(0.016 * Global.editPrepFrames, Ignore Condition);
+			Global.bot.replayFrameCounter = 0;
+			"init state"
+			disabled Global.bot.initFacing = Facing Direction Of(Host Player);
+			disabled Global.bot.initPos = Position Of(Global.bot);
+			"init arrays"
+			Global.bot.throttles = Array(Throttle Of(Host Player));
+			Global.bot.throttleFrameCounts = Array(1);
+			"facing"
+			Global.bot.facings = Array(Facing Direction Of(Host Player));
+			Global.bot.facingFrameCounts = Array(1);
+			"weapon"
+			Global.bot.weapon = Array(Weapon(Global.bot));
+			Global.bot.weaponFrameCounts = Array(1);
+			"input buttons"
+			Global.bot.initButtonStates = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+			Global.bot.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(1));
+		Else;
+			Global.speedAtFrame = Global.recordSpeed;
+			Call Subroutine(goToFrame);
+			Call Subroutine(cutBotData);
+		End;
+		Stop Facing(Host Player);
+		Call Subroutine(exitMenu);
+		"disable inputs"
+		If(Global.disableAbilitiesInRecord);
+			Call Subroutine(hostDisableAll);
+		End;
+		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
+		Global.bot.attachee = Host Player;
+		Global.bot.replaying = False;
+		Global.recording = True;
+		Remove From Array(Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)), Global.bot).replaying = True;
+		Wait Until(!(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
+		Wait Until(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload)), 99999);
+		All Players(All Teams).replaying = False;
+		Global.recording = False;
+		Global.menuEnabled = True;
+	}
+}
+
+rule("cut bot data SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		cutBotData;
+	}
+
+	actions
+	{
+		Global.bot.throttles = Array Slice(Global.bot.throttles, 0, Global.bot.replayThrottleIndex + 1);
+		Global.bot.throttleFrameCounts = Array Slice(Global.bot.throttleFrameCounts, 0, Global.bot.replayThrottleIndex + 1);
+		Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts)
+			- 1] = Global.selectedFrame - Global.bot.replayThrottleLastFrame;
+		Global.bot.facings = Array Slice(Global.bot.facings, 0, Global.bot.replayFacingIndex + 1);
+		Global.bot.facingFrameCounts = Array Slice(Global.bot.facingFrameCounts, 0, Global.bot.replayFacingIndex + 1);
+		Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts) - 1] = Global.selectedFrame - Global.bot.replayFacingLastFrame;
+		Global.bot.buttonsFrameCounts = Mapped Array(Global.bot.buttonsFrameCounts, Array Slice(Current Array Element, 0,
+			Global.bot.replayButtonsIndices[Current Array Index] + 1));
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Global.iVal1 = Global.bot.buttonsFrameCounts[Global.iVal0];
+			Global.iVal1[Count Of(Global.iVal1) - 1] = Global.selectedFrame - Global.bot.replayButtonsLastFrames[Global.iVal0];
+			Global.bot.buttonsFrameCounts[Global.iVal0] = Global.iVal1;
+		End;
+	}
+}
+
+rule("go to frame SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		goToFrame;
+	}
+
+	actions
+	{
+		Call Subroutine(tpAllBotsToStart);
+		"when to begin entering slow motion; Global.editPrepFrames ticks = Global.editPrepFrames * 0.016s"
+		Global.niVal0 = Global.selectedFrame - Global.editPrepFrames;
+		"begin replay if the start prep frame occurs after 0"
+		If(Global.niVal0 >= 0);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+			Wait(0.256, Ignore Condition);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).replaying = True;
+			"wait if time to prep is nonzero"
+			If(Global.niVal0 > 0);
+				Wait(0.016 * Global.niVal0, Ignore Condition);
+			End;
+		End;
+		Global.timer = 0;
+		"if time to begin action is before, wait proper amount before starting playback"
+		If(Global.niVal0 < 0);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).doRefresh = True;
+			Wait(0.256, Ignore Condition);
+			"wait for slow motion to reach full speed"
+			Set Slow Motion(Global.speedAtFrame);
+			"wait till start of playback; -niVal0 frames before playback"
+			Wait(-0.016 * Global.niVal0, Ignore Condition);
+			Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)).replaying = True;
+			"wait remainder"
+			Wait(0.016 * (Global.editPrepFrames + Global.niVal0), Ignore Condition);
+		Else;
+			"wait for slow motion to reach full speed"
+			Set Slow Motion(Global.speedAtFrame);
+			Wait(0.016 * Global.editPrepFrames, Ignore Condition);
+		End;
+	}
+}
+
+rule("tp all bots to start SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		tpAllBotsToStart;
+	}
+
+	actions
+	{
+		Global.iVal1 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		For Global Variable(iVal0, 0, Count Of(Global.iVal1), 1);
+			Global.iVal2 = Global.iVal1[Global.iVal0];
+			Teleport(Global.iVal2, Global.iVal2.initPos);
+			Set Facing(Global.iVal2, Global.iVal2.initFacing, To World);
+		End;
+	}
+}
+
+rule("tp bot to start SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		tpBotToStart;
+	}
+
+	actions
+	{
+		Teleport(Global.bot, Global.bot.initPos);
+		Set Facing(Global.bot, Global.bot.initFacing, To World);
+	}
+}
+
+rule("tp bot here SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		tpBotHere;
+	}
+
+	actions
+	{
+		Teleport(Global.bot, Position Of(Host Player));
+		Set Facing(Global.bot, Facing Direction Of(Host Player), To World);
+		If(Event Player.totalFrames == 0);
+			Global.bot.initPos = Position Of(Host Player);
+			Global.bot.initFacing = Facing Direction Of(Host Player);
+		End;
+	}
+}
+
+rule("tp to bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		tpToBot;
+	}
+
+	actions
+	{
+		Teleport(Host Player, Position Of(Global.bot));
+		Set Facing(Host Player, Facing Direction Of(Global.bot), To World);
+	}
+}
+
+rule("change host hero SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeHostHero;
+	}
+
+	actions
+	{
+		Call Subroutine(exitMenu);
+		Global.facingBeforeUnspawn = Facing Direction Of(Host Player);
+		Global.posBeforeUnspawn = Position Of(Host Player);
+		Set Player Allowed Heroes(Host Player, Remove From Array(All Heroes, Hero Of(Host Player)));
+		Wait Until(!Has Spawned(Host Player), 99999);
+		Set Player Allowed Heroes(Host Player, All Heroes);
+		Wait Until(Has Spawned(Host Player), 99999);
+		Wait(0.016, Ignore Condition);
+		Teleport(Host Player, Global.posBeforeUnspawn);
+		Set Facing(Host Player, Global.facingBeforeUnspawn, To World);
+	}
+}
+
+rule("swap teams SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		swapTeams;
+	}
+
+	actions
+	{
+		Call Subroutine(exitMenu);
+		Global.facingBeforeUnspawn = Facing Direction Of(Host Player);
+		Global.posBeforeUnspawn = Position Of(Host Player);
+		Global.heroBeforeBotHeroSelect = Hero Of(Host Player);
+		Move Player to Team(Host Player, Opposite Team Of(Team Of(Host Player)), 0);
+		Move Player to Team(Players In Slot(0, Opposite Team Of(Team Of(Host Player))), Team Of(Host Player), -1);
+		Wait Until(!Has Spawned(Host Player), 99999);
+		Start Forcing Player To Be Hero(Host Player, Global.heroBeforeBotHeroSelect);
+		Wait Until(Has Spawned(Host Player), 99999);
+		Wait(0.016, Ignore Condition);
+		Teleport(Host Player, Global.posBeforeUnspawn);
+		Set Facing(Host Player, Global.facingBeforeUnspawn, To World);
+		Stop Forcing Player To Be Hero(Host Player);
+	}
+}
+
+rule("create bot team 1 SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		createBotTeam1;
+	}
+
+	actions
+	{
+		Global.iVal1 = Team 1;
+		Call Subroutine(createBot);
+	}
+}
+
+rule("create bot team 2 SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		createBotTeam2;
+	}
+
+	actions
+	{
+		Global.iVal1 = Team 2;
+		Call Subroutine(createBot);
+	}
+}
+
+rule("create deathmatch bot")
+{
+	event
+	{
+		Subroutine;
+		createBotAllTeam;
+	}
+
+	actions
+	{
+		Global.iVal1 = All Teams;
+		Call Subroutine(createBot);
+	}
+}
+
+rule("create dummy bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		createBot;
+	}
+
+	actions
+	{
+		"get first available bot slot"
+		For Global Variable(iVal0, 1, 23, 1);
+			If(!Entity Exists(Players In Slot(Global.iVal0, Global.iVal1)));
+				Break;
+			End;
+		End;
+		If(Entity Exists(Global.bot));
+			Create Dummy Bot(Hero Of(Global.bot), Global.iVal1, Global.iVal0, Position Of(Host Player), Facing Direction Of(Host Player));
+		Else;
+			Create Dummy Bot(Hero Of(Host Player), Global.iVal1, Global.iVal0, Position Of(Host Player), Facing Direction Of(Host Player));
+		End;
+		If(Entity Exists(Last Created Entity));
+			Global.bot = Last Created Entity;
+			Wait Until(Has Spawned(Global.bot), 9999);
+			Set Facing(Global.bot, Facing Direction Of(Host Player), To World);
+			Global.bot.initPos = Position Of(Host Player);
+			Global.bot.initFacing = Facing Direction Of(Host Player);
+			Call Subroutine(updateMenuString);
+		Else;
+			Small Message(All Players(All Teams), Custom String("failed to create bot"));
+		End;
+	}
+}
+
+rule("change bot hero SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeBotHero;
+	}
+
+	actions
+	{
+		disabled Call Subroutine(exitMenu);
+		Global.facingBeforeUnspawn = Facing Direction Of(Host Player);
+		Global.posBeforeUnspawn = Position Of(Host Player);
+		Global.heroBeforeBotHeroSelect = Hero Of(Host Player);
+		Set Player Allowed Heroes(Host Player, Remove From Array(All Heroes, Hero Of(Host Player)));
+		Wait Until(!Has Spawned(Host Player), 99999);
+		Set Player Allowed Heroes(Host Player, All Heroes);
+		Wait Until(Has Spawned(Host Player), 99999);
+		Global.bot.selectedHero = Hero Of(Host Player);
+		Start Forcing Player To Be Hero(Global.bot, Global.bot.selectedHero);
+		disabled Stop Forcing Player To Be Hero(Global.bot);
+		Start Forcing Player To Be Hero(Host Player, Global.heroBeforeBotHeroSelect);
+		Stop Forcing Player To Be Hero(Host Player);
+		Wait(0.016, Ignore Condition);
+		Teleport(Host Player, Global.posBeforeUnspawn);
+		Set Facing(Host Player, Global.facingBeforeUnspawn, To World);
+	}
+}
+
+rule("remove bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		removeBot;
+	}
+
+	actions
+	{
+		Create Progress Bar HUD Text(All Players(All Teams), Update Every Frame(100 * (Total Time Elapsed - Evaluate Once(
+			Total Time Elapsed)) / 0.500), Null, Top, 0, Color(Purple), Color(Purple), Visible To and Values, Default Visibility);
+		Global.tmpProgresBar = Last Text ID;
+		Wait Until(!Is Button Held(Host Player, Button(Jump)), 0.500);
+		Destroy Progress Bar HUD Text(Global.tmpProgresBar);
+		If(!Is Button Held(Host Player, Button(Jump)));
+			Abort;
+		End;
+		"select the next bot"
+		Global.iVal0 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		Global.iVal0 = Global.iVal0[(Index Of Array Value(Global.iVal0, Global.bot) + (Count Of(Global.iVal0) - 1)) % Count Of(
+			Global.iVal0)];
+		Destroy Dummy Bot(Team Of(Global.bot), Slot Of(Global.bot));
+		Global.bot = Global.iVal0;
+		Call Subroutine(updateMenuString);
+	}
+}
+
+rule("change bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeBot;
+	}
+
+	actions
+	{
+		Global.iVal0 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		"cant be bothered to do properly + all bots arr contains no dupes"
+		Global.bot = Global.iVal0[(Index Of Array Value(Global.iVal0, Global.bot) + Count Of(Global.iVal0) + Global.menuIncrementSign)
+			% Count Of(Global.iVal0)];
+		Global.selectedFrame = Min(Global.selectedFrame, Global.bot.totalFrames);
+	}
+}
+
+rule("change frame SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeFrame;
+	}
+
+	actions
+	{
+		Global.selectedFrame = (Global.selectedFrame + Global.bot.totalFrames + Global.menuIncrementSign) % Global.bot.totalFrames;
+		If(Global.timelineOpen);
+			Global.requestTimelineUpdate = True;
+		End;
+	}
+}
+
+disabled rule("MISC ACTIONS/SUBS")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+}
+
+rule("third person cam on/off")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.thirdPersonCamOn == True;
+	}
+
+	actions
+	{
+		Start Camera(Host Player, Update Every Frame(Ray Cast Hit Position(Eye Position(Host Player), Eye Position(Host Player)
+			+ -3.500 * Facing Direction Of(Host Player), Empty Array, Empty Array, False)), Update Every Frame(Eye Position(Host Player)),
+			0);
+		Wait Until(!Global.thirdPersonCamOn, 99999);
+		Stop Camera(Host Player);
+	}
+}
+
+rule("disable all for host SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		hostDisableAll;
+	}
+
+	actions
+	{
+		Set Move Speed(Host Player, 0);
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Disallow Button(Host Player, Global.allButtons[Global.iVal0]);
+		End;
+		"stop jump out of activation"
+		Set Jump Enabled(Host Player, False);
+	}
+}
+
+rule("enable all for host SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		hostEnableAll;
+	}
+
+	actions
+	{
+		Set Move Speed(Host Player, 100);
+		For Global Variable(iVal0, 0, 10, 1);
+			Allow Button(Host Player, Global.allButtons[Global.iVal0]);
+		End;
+		Set Jump Enabled(Host Player, True);
+	}
+}
+
+rule("refresh bot SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		refreshBot;
+	}
+
+	actions
+	{
+		Teleport(Event Player, Event Player.initPos);
+		Event Player.preRefreshFace = Facing Direction Of(Event Player);
+		Event Player.selectedHero = Hero Of(Event Player);
+		Event Player.preRefreshPos = Position Of(Event Player);
+		"stupid d.va bug"
+		If(Hero Of(Event Player) == Hero(D.Va));
+			Respawn(Event Player);
+		Else;
+			Resurrect(Event Player);
+			Set Player Allowed Heroes(Event Player, Remove From Array(All Heroes, Hero Of(Event Player)));
+			Wait Until(!Has Spawned(Event Player), 999999);
+			Set Player Allowed Heroes(Event Player, All Heroes);
+			Wait Until(Has Spawned(Event Player), 999999);
+		End;
+		Wait(0.016, Ignore Condition);
+		Start Forcing Player To Be Hero(Event Player, Event Player.selectedHero);
+		Teleport(Event Player, Event Player.preRefreshPos);
+		Set Facing(Event Player, Event Player.preRefreshFace, To World);
+		If(Event Player.attachee);
+			Attach Players(Event Player.attachee, Event Player, Vector(0, 0, 0));
+		End;
+		Cancel Primary Action(Event Player);
+		"stop bot shadowing buttons"
+		For Player Variable(Event Player, iVal0, 0, Count Of(Global.allButtons), 1);
+			Stop Holding Button(Event Player, Global.allButtons[Event Player.iVal0]);
+		End;
+		Stop Throttle In Direction(Event Player);
+		Stop Facing(Event Player);
+		Set Ability Cooldown(Event Player, Button(Ability 1), 0);
+		Set Ability Cooldown(Event Player, Button(Ability 2), 0);
+		Set Ability Cooldown(Event Player, Button(Crouch), 0);
+		Set Ability Cooldown(Event Player, Button(Secondary Fire), 0);
+		Set Ultimate Charge(Event Player, 100);
+		Set Player Health(Event Player, Max Health(Event Player));
+		Heal(Event Player, Null, 100);
+		Clear Status(Event Player, Hacked);
+		Clear Status(Event Player, Knocked Down);
+		Clear Status(Event Player, Asleep);
+		Clear Status(Event Player, Burning);
+		Clear Status(Event Player, Frozen);
+		Clear Status(Event Player, Unkillable);
+		Clear Status(Event Player, Invincible);
+		Clear Status(Event Player, Phased Out);
+		Clear Status(Event Player, Rooted);
+		Clear Status(Event Player, Stunned);
+		Set Weapon(Event Player, First Of(Event Player.weapon));
+	}
+}
+
+rule("host shadow bot's cooldowns")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is True For Any(Global.allButtons, Ability Cooldown(Host Player, Current Array Element) != Ability Cooldown(Global.bot,
+			Current Array Element)) == True;
+	}
+
+	actions
+	{
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Set Ability Cooldown(Host Player, Global.allButtons[Global.iVal0], Ability Cooldown(Global.bot, Global.allButtons[Global.iVal0]));
+		End;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("host shadow bot's ammo")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Is True For Any(Global.allButtons, Ability Cooldown(Host Player, Current Array Element) != Ability Cooldown(Global.bot,
+			Current Array Element)) == True;
+	}
+
+	actions
+	{
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Set Ability Cooldown(Host Player, Global.allButtons[Global.iVal0], Ability Cooldown(Global.bot, Global.allButtons[Global.iVal0]));
+		End;
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("host shadow bot's ult")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Ultimate Charge Percent(Host Player) != Ultimate Charge Percent(Global.bot);
+	}
+
+	actions
+	{
+		Set Ultimate Charge(Host Player, Ultimate Charge Percent(Global.bot));
+		Wait(0.016, Ignore Condition);
+		Loop If Condition Is True;
+	}
+}
+
+rule("timer chase")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.timer == 0;
+	}
+
+	actions
+	{
+		For Global Variable(timer, 0, Global.editPrepFrames, 1);
+			Wait(0.016, Ignore Condition);
+		End;
+	}
+}
+
+disabled rule("testFx")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Global.iVal1 = Custom String("");
+		For Global Variable(iVal0, 0, 50, 10);
+			Global.iVal1 = Custom String("{0}{1}", Ability Icon String(Hero(Ana), Button(Ability 1)), Global.iVal1);
+		End;
+		"cant be bothered"
+		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -30 * Normalize(Cross Product(Facing Direction Of(
+			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.250, Do Not Clip, Visible To and Position, Custom Color((
+			X Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+		Global.iVal1 = Custom String("");
+		For Global Variable(iVal0, 0, 50, 10);
+			Global.iVal1 = Custom String("{0}{1}", Ability Icon String(Hero(Ana), Button(Ability 2)), Global.iVal1);
+		End;
+		"cant be bothered"
+		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -40 * Normalize(Cross Product(Facing Direction Of(
+			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.250, Do Not Clip, Visible To and Position, Custom Color((
+			X Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+		Global.iVal1 = Custom String("");
+		For Global Variable(iVal0, 0, 50, 10);
+			Global.iVal1 = Custom String("{0}{1}", Ability Icon String(Hero(Ana), Button(Ultimate)), Global.iVal1);
+		End;
+		"cant be bothered"
+		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -50 * Normalize(Cross Product(Facing Direction Of(
+			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.750, Do Not Clip, Visible To and Position, Custom Color((
+			X Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+		"cant be bothered"
+		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -50 * Normalize(Cross Product(Facing Direction Of(
+			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.750, Do Not Clip, Visible To and Position, Custom Color((
+			X Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0]) + 1) * 127.500, 255), Default Visibility);
+	}
+}
+
+rule("host player is spectating")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Host Player == False;
+	}
+
+	actions
+	{
+		Call Subroutine(exitMenu);
+	}
+}
+
+rule("host player from spectator start replay")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Host Player == False;
+		Is Button Held(Host Player, Button(Primary Fire)) == True;
+	}
+
+	actions
+	{
+		Call Subroutine(beginReplay);
+	}
+}
+
+rule("bot uses dva bomb - reattach")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		D.Va;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+		Event Player.attachee == True;
+		Is In Alternate Form(Event Player) == True;
+	}
+
+	actions
+	{
+		Attach Players(Event Player.attachee, Event Player, Vector(0, 0, 0));
+		"demech"
+		disabled Kill(Event Player.attachee, Null);
+	}
+}
+
+rule("save data SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		saveToGlobal;
+	}
+
+	actions
+	{
+		Global.data = Empty Array;
+		Global.iVal1 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		For Global Variable(iVal0, 0, Count Of(Global.iVal1), 1);
+			Global.iVal2 = Global.iVal1[Global.iVal0];
+			Global.data[Global.iVal0] = Array(Hero Of(Global.iVal2), Team Of(Global.iVal2), Mapped Array(Global.iVal2.throttles, Vector(1000,
+				1000, 1000) * Current Array Element), Global.iVal2.throttleFrameCounts, Mapped Array(Global.iVal2.facings, Vector(1000, 1000,
+				1000) * Current Array Element), Global.iVal2.facingFrameCounts, Global.iVal2.initButtonStates, Global.iVal2.buttonsFrameCounts,
+				Global.iVal2.weapon, Global.iVal2.weaponFrameCounts, 1000 * X Component Of(Global.iVal2.initFacing), 1000 * Y Component Of(
+				Global.iVal2.initFacing), 1000 * Z Component Of(Global.iVal2.initFacing), 1000 * X Component Of(Global.iVal2.initPos),
+				1000 * Y Component Of(Global.iVal2.initPos), 1000 * Z Component Of(Global.iVal2.initPos), Global.iVal2.totalFrames);
+		End;
+		Enable Inspector Recording;
+		Disable Inspector Recording;
+		Small Message(All Players(All Teams), Custom String("check inspector for global data"));
+		Global.data = Empty Array;
+	}
+}
+
+rule("compile together the data")
+{
+	event
+	{
+		Subroutine;
+		initData;
+	}
+
+	actions
+	{
+		Call Subroutine(loadData0);
+		Call Subroutine(loadData1);
+		Call Subroutine(loadData2);
+		Call Subroutine(loadData3);
+		Call Subroutine(loadData4);
+		Call Subroutine(loadData5);
+		Call Subroutine(loadData6);
+		Call Subroutine(loadData7);
+		Call Subroutine(loadData8);
+		Call Subroutine(loadData9);
+		Call Subroutine(loadData10);
+		Call Subroutine(loadData11);
+		Call Subroutine(loadData12);
+		Call Subroutine(loadData13);
+		Call Subroutine(loadData14);
+		Call Subroutine(loadData15);
+		Call Subroutine(loadData16);
+		Call Subroutine(loadData17);
+		Call Subroutine(loadData18);
+		Call Subroutine(loadData19);
+		Call Subroutine(loadData20);
+		Call Subroutine(loadData21);
+		Call Subroutine(loadData22);
+		Call Subroutine(loadData23);
+	}
+}
+
+rule("load data if available")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Call Subroutine(initData);
+		If(Global.data);
+			Global.iVal12 = Array(1, 1, 1);
+			While(Count Of(Global.data));
+				Global.iVal11 = Global.data[Count Of(Global.data) - 1];
+				Global.iVal3 = Global.iVal11[1];
+				If(Global.iVal3 == Team 1);
+					Create Dummy Bot(Global.iVal11[0], Team 1, Global.iVal12[0], Vector(0, 0, 0), Vector(0, 0, 0));
+					Global.iVal12[0] += 1;
+				Else If(Global.iVal3 == Team 2);
+					Create Dummy Bot(Global.iVal11[0], Team 2, Global.iVal12[1], Vector(0, 0, 0), Vector(0, 0, 0));
+					Global.iVal12[1] += 1;
+				Else;
+					Create Dummy Bot(Global.iVal11[0], All Teams, Global.iVal12[2], Vector(0, 0, 0), Vector(0, 0, 0));
+					Global.iVal12[2] += 1;
+				End;
+				Global.bot = Last Created Entity;
+				Global.bot.selectedHero = Global.iVal11[0];
+				Global.iVal10 = Global.iVal11[2];
+				Call Subroutine(decompressVectors);
+				Global.bot.throttles = Global.iVal3;
+				Global.iVal10 = Global.iVal11[4];
+				Call Subroutine(decompressVectors);
+				Global.bot.facings = Global.iVal3;
+				Global.bot.throttleFrameCounts = Global.iVal11[3];
+				Global.bot.facingFrameCounts = Global.iVal11[5];
+				Global.bot.initButtonStates = Global.iVal11[6];
+				Global.bot.buttonsFrameCounts = Global.iVal11[7];
+				Global.bot.weapon = Global.iVal11[8];
+				Global.bot.weaponFrameCounts = Global.iVal11[9];
+				Global.bot.initFacing = Vector(Global.iVal11[10] / 1000, Global.iVal11[11] / 1000, Global.iVal11[12] / 1000);
+				Global.bot.initPos = Vector(Global.iVal11[13] / 1000, Global.iVal11[14] / 1000, Global.iVal11[15] / 1000);
+				Global.bot.totalFrames = Global.iVal11[16];
+				Global.iVal3 = Null;
+				Global.iVal4 = Null;
+				Modify Global Variable(data, Remove From Array By Index, Count Of(Global.data) - 1);
+			End;
+			Global.data = Null;
+			Global.iVal11 = Null;
+			Small Message(All Players(All Teams), Custom String("data loaded - all bots initialized"));
+		End;
+	}
+}
+
+rule("decompress vectors SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		decompressVectors;
+	}
+
+	actions
+	{
+		"ival3 is output, ival10 is input"
+		Global.iVal3 = Empty Array;
+		Global.iVal4 = Global.iVal10[Count Of(Global.iVal10) - 1];
+		"remove from top; hopefully they use vectors for arrays"
+		Modify Global Variable(iVal10, Remove From Array By Index, Count Of(Global.iVal10) - 1);
+		While(True);
+			If(String Length(Global.iVal4) < 24);
+				"no string left to add to iVal4"
+				If(Count Of(Global.iVal10) == 0);
+					Break;
+				"next string doesnt fit"
+				Else If(String Length(Global.iVal4) + String Length(Global.iVal10[Count Of(Global.iVal10) - 1]) > 511);
+					Global.iVal5 = 511 - String Length(Global.iVal4);
+					"place new string in front; we read back to front of the string"
+					Global.iVal4 = Custom String("{0}{1}", String Slice(Global.iVal10[Count Of(Global.iVal10) - 1], String Length(
+						Global.iVal10[Count Of(Global.iVal10) - 1]) - Global.iVal5, Global.iVal5), Global.iVal4);
+					Global.iVal10[Count Of(Global.iVal10) - 1] = String Slice(Global.iVal10[Count Of(Global.iVal10) - 1], 0, String Length(
+						Global.iVal10[Count Of(Global.iVal10) - 1]) - Global.iVal5);
+				"put whole string into ival4"
+				Else;
+					"place new string in front; we read back to front of the string"
+					Global.iVal4 = Custom String("{0}{1}", Global.iVal10[Count Of(Global.iVal10) - 1], Global.iVal4);
+					Modify Global Variable(iVal10, Remove From Array By Index, Count Of(Global.iVal10) - 1);
+					Wait(0.016, Ignore Condition);
+				End;
+			End;
+			Global.iVal6 = Empty Array;
+			Call Subroutine(convertTop8ToNum);
+			Global.iVal6[0] = Global.iVal5;
+			Call Subroutine(convertTop8ToNum);
+			Global.iVal6[1] = Global.iVal5;
+			Call Subroutine(convertTop8ToNum);
+			Global.iVal6 = Vector(Global.iVal6[0], Global.iVal6[1], Global.iVal5);
+			Modify Global Variable(iVal3, Append To Array, Global.iVal6);
+		End;
+	}
+}
+
+rule("convert top eight chars to num SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		convertTop8ToNum;
+	}
+
+	actions
+	{
+		disabled Log To Inspector(Global.iVal4);
+		Global.iVal9 = String Slice(Global.iVal4, String Length(Global.iVal4) - 8, 8);
+		Global.iVal4 = String Slice(Global.iVal4, 0, String Length(Global.iVal4) - 8);
+		Global.iVal8 = 1 / 1000000;
+		Global.iVal5 = 0;
+		For Global Variable(iVal7, 7, 0, -1);
+			Global.iVal5 += Global.iVal8 * Index Of String Char(Global.numbers, String Slice(Global.iVal9, Global.iVal7, 1));
+			Global.iVal8 *= 10;
+		End;
+		If(String Slice(Global.iVal9, 0, 1) == Custom String("-"));
+			Global.iVal5 = 0 - Global.iVal5;
+		End;
+	}
+}
