@@ -1,48 +1,33 @@
 import math
 
-def getDataValue(s):
-    dataLocation = 0
-    
-    # last occurrence of data
-    for i in range(0, len(s)):
-        if s[i:i+4] == 'data':
-            dataLocation = i
-    
-    startLocation = dataLocation
+# NEW FUNCTIONS    --------------------------------------------------
 
-    # first occurence of Array after datalocation
-    for i in range(dataLocation, len(s)):
-        if s[i:i+5] == 'Array':
-            startLocation = i
+def find_first_occurence(s, c):
+    i = 0
+    while i < len(s) and s[i] != c:
+        i += 1
+    return i
+
+def remove_line_header(s):
+    return s[ find_first_occurence(s, ']') + 2
+              : len(s) ]
+
+def read_word(s):
+    return s[ 0
+              : find_first_occurence(s, ' ') + 1]
+
+def is_all_ws(s):
+    has_non_ws = False
+    for c in s:
+        if c != ' ' or c != '\n':
+            has_non_ws = True
             break
-
-    endSemicolon = dataLocation
-
-    # first occurence of ; after datalocation
-    for i in range(dataLocation, len(s)):
-        if s[i] == ';':
-            endSemicolon = i
-            break
     
-    s = s[startLocation:endSemicolon]
-    return s
+    return has_non_ws
 
-def removeBracketLevel(s):
-    openingLoc = 0
-    endingLoc = 0
+# LEGACY FUNCTIONS --------------------------------------------------
 
-    for i in range(0, len(s)):
-        if s[i] == '(':
-            openingLoc = i
-            break
-
-    for i in range(openingLoc, len(s)):
-        if s[i] == ')':
-            endingLoc = i
-    
-    return s[openingLoc + 1:endingLoc]
-
-# this functions is stupid; does not consider if commas/brackets occur in strings
+# this function is stupid; does not consider if commas/brackets occur in strings
 def splitAtLevel(s):
     arr = []
     
@@ -158,26 +143,31 @@ def compressToStrings(s):
     ret = "Array({elems})".format(elems=ret[0:len(ret) - 1])
     return ret
 
+# MAIN PROGRAM     --------------------------------------------------
 
-inp = ""
+
+class bot:
+    def __init__(self, hero, team):
+        self.hero = hero
+        self.team = team
+    
+    def reset(self, firstPos, firstFac, firstWep, initButtonStates):
+        self.throttles = [[firstPos]]
+        self.throttleTimings = [[]]
+        self.facings = [[firstFac]]
+        self.facingTimings = [[]]
+        self.weapon = [[]]
+        self.weaponTimings = [[]]
+        
+
 while True:
     try:
-        inp += input()
+        line = remove_line_header(input())
+        
+        if line:
+            print(remove_line_header(line))
     except EOFError:
         break
 
-botDatas = splitAtLevel(removeBracketLevel(getDataValue(inp)))
-
 def multBy1000(s):
     return "{i}".format(i=1000 * float(s))
-
-for i in range(0, len(botDatas)):
-    botData = splitAtLevel(removeBracketLevel(botDatas[i]))
-    botData[4] = compressToStrings(botData[4])
-    botData[2] = compressToStrings(botData[2])
-    
-    # print(botData[0:10])
-    # prefix = botData[0:10] + list(map(multBy1000, splitAtLevel(removeBracketLevel(botData[10])))) + list(map(multBy1000, splitAtLevel(removeBracketLevel(botData[11])))) + ([botData[12]]);
-    # botData = prefix
-    printSubroutine(i, 0, listToString(botData))
-    # printSubroutine(i, 1, listToString(botData[5:len(botData)]))
