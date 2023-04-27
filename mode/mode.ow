@@ -102,6 +102,7 @@ variables
 		50: iVal10
 		51: iVal11
 		52: iVal12
+		53: logBuffer
 
 	player:
 		0: throttles
@@ -123,6 +124,7 @@ variables
 		16: replayFacingIndex
 		17: replayThrottleIndex
 		18: replayButtonsIndices
+		19: number
 		22: replayFrameCounter
 		23: replaying
 		24: initFacing
@@ -174,6 +176,7 @@ subroutines
 	38: decompressVectors
 	39: convertTop8ToNum
 	40: capBotRecord
+	41: pushLog
 	104: loadData0
 	105: loadData1
 	106: loadData2
@@ -232,6 +235,7 @@ rule("init global")
 		Global.thirdPersonCamOn = False;
 		Global.watchBotOnReplay = False;
 		Global.botInvisOn = True;
+		
 		Global.recordSpeed = 10;
 		Global.replaySpeed = 100;
 		Global.editPrepFrames = 40;
@@ -240,6 +244,8 @@ rule("init global")
 		Global.timer = 100;
 		Global.disableAbilitiesInRecord = True;
 		Global.showData = True;
+		"log commands: n - make a new bot, b - change to bot, x - remove bot, r - reset bot data, c - cut bot's data, a - append to bot's var, p - set bot init pos, f - set bot init facing"
+		Global.logBuffer = Custom String("");
 		Global.timelineFrameAdvance = 50;
 		Global.timelineFrameLength = 440 / Global.timelineFrameAdvance;
 		Global.menuActions = Array(Custom String("replay"), Custom String("replay at frame"), Custom String("record from current bot pos"),
@@ -257,6 +263,7 @@ rule("init global")
 			"plays to frame \nthen begins recording \ninteract + reload stops record"), Null, Null, Null, Null, Null, Null, Null, Null,
 			Null, Null, Null, Null, Null, Null, Null, Null, Null, Null, Custom String(
 			"Displays a timeline containing the \n{0} frames after selected frame", Global.timelineFrameAdvance), Null, Null);
+
 	}
 }
 
@@ -271,7 +278,10 @@ disabled rule("init bots")
 	{
 		"dumb bot"
 		Create Dummy Bot(Hero(Ana), Team 1, 1, Vector(-15.511, 0.574, -89.571), Vector(0, 0, 0));
+		Global.bot.number = 1;
 		Global.bot = Last Created Entity;
+		Global.logBuffer = Custom String("b {0}", Global.bot.number);
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -332,21 +342,18 @@ rule("bot init")
 
 	actions
 	{
-		"init state"
-		Event Player.initFacing = Facing Direction Of(Event Player);
-		Event Player.initPos = Position Of(Event Player);
 		"init arrays"
-		Event Player.throttles = Array(Throttle Of(Host Player));
-		Event Player.throttleFrameCounts = Array(1);
+		Event Player.throttles = Array(Array(Throttle Of(Host Player)));
+		Event Player.throttleFrameCounts = Empty Array;
 		"facing"
-		Event Player.facings = Array(Facing Direction Of(Host Player));
-		Event Player.facingFrameCounts = Array(1);
+		Event Player.facings = Array(Array(Facing Direction Of(Host Player)));
+		Event Player.facingFrameCounts = Array(Empty Array);
 		"weapon"
-		Event Player.weapon = Array(Weapon(Event Player));
-		Event Player.weaponFrameCounts = Array(1);
+		Event Player.weapon = Array(Weapon(Host Player));
+		Event Player.weaponFrameCounts = Array(Empty Array);
 		"input buttons"
-		Event Player.initButtonStates = Mapped Array(Global.allButtons, False);
-		Event Player.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(1));
+		Event Player.initButtonStates = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		Event Player.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(Empty Array));
 	}
 }
 
@@ -402,7 +409,7 @@ rule("player spawn/resp")
 	}
 }
 
-rule("fx")
+rule("vis")
 {
 	event
 	{
@@ -423,7 +430,7 @@ rule("fx")
 			Local Player))), Custom String("spd {0} hspd {1} vspd {2}", Speed Of(Local Player), Horizontal Speed Of(Local Player),
 			Vertical Speed Of(Local Player)))), Null, Null, Right, 0, Color(White), Color(White), Color(White), Visible To and String,
 			Default Visibility);
-		Create HUD Text(Global.showData ? Local Player : 0, Custom String("bot frame {0}", Global.bot.replayFrameCounter), Null, Null,
+		Create HUD Text(Global.showData ? Local Player : 0, Custom String("{0} bot frame \n{1} throttle index \n{2} facing index", Global.bot.replayFrameCounter, Global.bot.replayThrottleIndex, Global.bot.replayFacingIndex), Null, Null,
 			Right, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
 		"frame indicator"
 		Create Icon(Global.showData ? Local Player : 0, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
@@ -445,6 +452,20 @@ rule("fx")
 			Visible To and String, Default Visibility);
 	}
 }
+
+rule("debug vis")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	actions
+	{
+		Create HUD Text(Global.showData ? Local Player : 0, Custom String("{0} throttle val frame \n{1} frame val", Global.bot.throttles[Round To Integer(Global.bot.replayFacingIndex / 1000, Down)][Global.bot.replayFacingIndex % 1000], Global.bot.throttleFrameCounts[Round To Integer(Global.bot.replayThrottleIndex / 20, Down)][Global.bot.replayThrottleIndex % 20]), Null, Null, Right, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
+	}
+}
+
 
 disabled rule("RECORD AND REPLAY")
 {
@@ -504,28 +525,6 @@ rule("record")
 	}
 }
 
-rule("refresh bot on request")
-{
-	event
-	{
-		Ongoing - Each Player;
-		All;
-		All;
-	}
-
-	conditions
-	{
-		Event Player.doRefresh == True;
-		disabled Is Dummy Bot(Event Player) == True;
-	}
-
-	actions
-	{
-		Call Subroutine(refreshBot);
-		Event Player.doRefresh = False;
-	}
-}
-
 rule("replay")
 {
 	event
@@ -561,26 +560,27 @@ rule("replay")
 			End;
 		End;
 		"throttle and facing"
-		Start Throttle In Direction(Event Player, Event Player.throttles[Event Player.replayThrottleIndex / 1000][Event Player.replayThrottleIndex % 1000], Magnitude Of(
-			Event Player.throttles[Event Player.replayThrottleIndex / 1000][Event Player.replayThrottleIndex % 1000]), To Player, Replace existing throttle, Direction and Magnitude);
-		Start Facing(Event Player, Event Player.facings[Event Player.replayFacingIndex / 1000][Event Player.replayFacingIndex % 1000], 10000, To World, Direction and Turn Rate);
+		Start Throttle In Direction(Event Player, Event Player.throttles[Round To Integer(Event Player.replayThrottleIndex / 1000, Down)][Event Player.replayThrottleIndex % 1000], Magnitude Of(
+			Event Player.throttles[Round To Integer(Event Player.replayThrottleIndex / 1000, Down)][Event Player.replayThrottleIndex % 1000]), To Player, Replace existing throttle, Direction and Magnitude);
+		Start Facing(Event Player, Event Player.facings[Round To Integer(Event Player.replayFacingIndex / 1000, Down)][Event Player.replayFacingIndex % 1000], 10000, To World, Direction and Turn Rate);
 		Set Weapon(Event Player, First Of(Event Player.weapon));
 		"replay loop"
 		While(Event Player.replaying);
 			Wait(0.016, Ignore Condition);
 			Event Player.replayFrameCounter += 1;
-			If(Event Player.replayFrameCounter >= Event Player.throttleFrameCounts[Event Player.replayThrottleIndex / 1000][Event Player.replayThrottleIndex % 1000]);
+			"change action after reaching"
+			If(Event Player.replayFrameCounter >= Event Player.throttleFrameCounts[Round To Integer(Event Player.replayThrottleIndex / 1000, Down)][Event Player.replayThrottleIndex % 1000]);
 				Event Player.replayThrottleIndex += 1;
-				If(Event Player.replayThrottleIndex >= Count Of(Event Player.throttles));
+				If(Event Player.replayThrottleIndex >= 1000 * (Count Of(Event Player.throttles) - 1) + Count Of(Last Of(Event Player.throttles)));
 					Break;
 				End;
 			End;
-			If(Event Player.replayFrameCounter >= Event Player.facingFrameCounts[Event Player.replayFacingIndex / 1000][Event Player.replayFacingIndex % 1000]);
+			If(Event Player.replayFrameCounter >= Event Player.facingFrameCounts[Round To Integer(Event Player.replayFacingIndex / 1000, Down)][Event Player.replayFacingIndex % 1000]);
 				Event Player.replayFacingIndex += 1;
 			End;
-			If(Event Player.replayFrameCounter >= Event Player.weaponFrameCounts[Event Player.replayWeaponIndex / 1000][Event Player.replayWeaponIndex % 1000]);
+			If(Event Player.replayFrameCounter >= Event Player.weaponFrameCounts[Round To Integer(Event Player.replayWeaponIndex / 1000, Down)][Event Player.replayWeaponIndex % 1000]);
 				Event Player.replayWeaponIndex += 1;
-				Set Weapon(Event Player, Event Player.weapon[Event Player.replayWeaponIndex / 1000][Event Player.replayWeaponIndex % 1000]);
+				Set Weapon(Event Player, Event Player.weapon[Round To Integer(Event Player.replayWeaponIndex / 1000, Down)][Event Player.replayWeaponIndex % 1000]);
 			End;
 			"change states"
 			For Player Variable(Event Player, iVal0, 0, Count Of(Global.allButtons), 1);
@@ -623,43 +623,80 @@ rule("register input to bot SUBROUTINE")
 
 	actions
 	{
+		Global.logBuffer = Custom String("");
 		"THROTTLE"
-		If(Last Of(Global.bot.throttles) != Throttle Of(Host Player));
-			If(Count Of(Last Of(Global.bot.throttles) == 1000));
+		If(Last Of(Last Of(Global.bot.throttles)) != Throttle Of(Host Player));
+			
+			If(Count Of(Last Of(Global.bot.throttles)) == 1000);
+				Global.bot.throttles[Count Of(Global.bot.throttles)] = Array(Throttle Of(Host Player));
 			Else;
-				Modify Player Variable At Index(Global.bot, throttles, Append To Array, Throttle Of(Host Player));
-				"corresponds to the end time of formerly last elem of throttles (at this point, throttles[count(throttles) - 2] )"
-				Modify Player Variable(Global.bot, throttleFrameCounts, Append To Array, Global.bot.replayFrameCounter);
+				Modify Player Variable At Index(Global.bot, throttles, Count Of(Global.bot.throttles) - 1, Append To Array, Throttle Of(Host Player));
 			End;
 
-			Log To Inspector(Custom String("throttle to {1} frame {2}", Global.allButtons[Global.iVal0], Throttle Of(Host Player),
-				Global.bot.replayFrameCounter));
+			"corresponds to the end time of formerly last elem of throttles (at this point, throttles[count(throttles) - 2])"
+			If(Count Of(Last Of(Global.bot.throttleFrameCounts)) == 1000);
+				Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts)] = Array(Global.bot.replayFrameCounter);
+			Else;
+				Modify Player Variable At Index(Global.bot, throttleFrameCounts, Count Of(Global.bot.throttleFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
+			End;
+
+			Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a thrT {0} \na thr {1}", Global.bot.replayFrameCounter, 1000 * Throttle Of(Host Player)));
 		End;
 		"FACING"
-		If(Last Of(Global.bot.facings) != Facing Direction Of(Host Player));
-			Modify Player Variable(Global.bot, facings, Append To Array, Facing Direction Of(Host Player));
-			Modify Player Variable(Global.bot, facingFrameCounts, Append To Array, Global.bot.replayFrameCounter);
-			Log To Inspector(Custom String("facing to {1} frame {2}", Global.allButtons[Global.iVal0], Throttle Of(Host Player),
-				Global.bot.replayFrameCounter));
+		If(Last Of(Last Of(Global.bot.facings)) != Facing Direction Of(Host Player));
+			
+			If(Count Of(Last Of(Global.bot.facings)) == 1000);
+				Global.bot.facings[Count Of(Global.bot.facings)] = Array(Facing Direction Of(Host Player));
+			Else;
+				Modify Player Variable At Index(Global.bot, facings, Count Of(Global.bot.facings) - 1, Append To Array, Facing Direction Of(Host Player));
+			End;
+
+			
+			If(Count Of(Last Of(Global.bot.facingFrameCounts)) == 1000);
+				Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts)] = Array(Global.bot.replayFrameCounter);
+			Else;
+				Modify Player Variable At Index(Global.bot, facingFrameCounts, Count Of(Global.bot.facingFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
+			End;
+
+			Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a facT {0} \na fac {1}", Global.bot.replayFrameCounter, 1000 * Facing Direction Of(Host Player)));
 		End;
+
 		"WEAPON"
-		If(Last Of(Global.bot.weapon) != Weapon(Host Player));
-			Modify Player Variable(Global.bot, weapon, Append To Array, Weapon(Host Player));
-			Modify Player Variable(Global.bot, weaponFrameCounts, Append To Array, Global.bot.replayFrameCounter);
-			Log To Inspector(Custom String("weapon to {1} frame {2}", Global.allButtons[Global.iVal0], Weapon(Host Player),
-				Global.bot.replayFrameCounter));
+		If(Last Of(Last Of(Global.bot.weapon)) != Weapon(Host Player));
+			If(Count Of(Last Of(Global.bot.weapon)) == 1000);
+				Global.bot.weapon[Count Of(Global.bot.weapon)] = Array(Weapon(Host Player));
+			Else;
+				Modify Player Variable At Index(Global.bot, weapon, Count Of(Global.bot.weapon) - 1, Append To Array, Weapon(Host Player));
+			End;
+			
+			If(Count Of(Last Of(Global.bot.weaponFrameCounts)) == 1000);
+				Global.bot.weaponFrameCounts[Count Of(Global.bot.weaponFrameCounts)] = Array(Global.bot.replayFrameCounter);
+			Else;
+				Modify Player Variable At Index(Global.bot, weaponFrameCounts, Count Of(Global.bot.weaponFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
+			End;
+			
+			Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a wepT {0} \na wep {1}", Global.bot.replayFrameCounter, Weapon(Host Player)));
 		End;
+
 		"BUTTONS"
 		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
 			"if match, continue count for button, else start a new count"
 			If(Global.bot.buttonsState[Global.iVal0] != Is Button Held(Host Player, Global.allButtons[Global.iVal0]));
-				Modify Player Variable At Index(Global.bot, buttonsFrameCounts, Global.iVal0, Append To Array, Global.bot.replayFrameCounter);
-				Log To Inspector(Custom String("{0} {1} frame {2}", Global.allButtons[Global.iVal0], Is Button Held(Host Player,
-					Global.allButtons[Global.iVal0]), Global.bot.replayFrameCounter));
+				
+				Global.iVal1 = Global.bot.buttonsFrameCounts[Global.iVal0];
+				If(Count Of(Last Of(Global.iVal1)) == 1000);
+					Global.iVal1[Count Of(Global.iVal1)] = Array(Global.bot.replayFrameCounter);
+				Else;
+					Modify Global Variable At Index(iVal1, Count Of(Global.iVal1) - 1, Append To Array, Global.bot.replayFrameCounter);
+				End;
+				Global.bot.buttonsFrameCounts[Global.iVal0] = Global.iVal1;
+				
+				Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a butT[{0}] {1} \na but[{0}] {2}", Global.iVal0, Global.bot.replayFrameCounter, Weapon(Host Player)));
 			End;
 		End;
 		"update button state"
 		Global.bot.buttonsState = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -704,13 +741,46 @@ rule("cap bot record SUBROUTINE")
 
 	actions
 	{
-		Modify Player Variable(Global.bot, throttleFrameCounts, Append To Array, Global.bot.replayFrameCounter);
-		Modify Player Variable(Global.bot, facingFrameCounts, Append To Array, Global.bot.replayFrameCounter);
-		Modify Player Variable(Global.bot, weaponFrameCounts, Append To Array, Global.bot.replayFrameCounter);
-		"BUTTONS"
-		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
-			Modify Player Variable At Index(Global.bot, buttonsFrameCounts, Global.iVal0, Append To Array, Global.bot.replayFrameCounter);
+		Global.logBuffer = Custom String("");
+		"cap off frame counts; each throttle val has a corresponding end frame time. technically doesn't matter what this val is, just needs to be past total frames count; everything is shut off at the end"
+		If(Count Of(Last Of(Global.bot.throttleFrameCounts)) == 1000);
+			Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts)] = Array(Global.bot.replayFrameCounter);
+		Else;
+			Modify Player Variable At Index(Global.bot, throttleFrameCounts, Count Of(Global.bot.throttleFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
 		End;
+		Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a thrT {0}", Global.bot.replayFrameCounter));
+
+
+		If(Count Of(Last Of(Global.bot.facingFrameCounts)) == 1000);
+			Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts)] = Array(Global.bot.replayFrameCounter);
+		Else;
+			Modify Player Variable At Index(Global.bot, facingFrameCounts, Count Of(Global.bot.facingFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
+		End;
+		Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a facT {0}", Global.bot.replayFrameCounter));
+
+
+		If(Count Of(Last Of(Global.bot.weaponFrameCounts)) == 1000);
+			Global.bot.weaponFrameCounts[Count Of(Global.bot.weaponFrameCounts)] = Array(Global.bot.replayFrameCounter);
+		Else;
+			Modify Player Variable At Index(Global.bot, weaponFrameCounts, Count Of(Global.bot.weaponFrameCounts) - 1, Append To Array, Global.bot.replayFrameCounter);
+		End;
+		Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a wepT {0}", Global.bot.replayFrameCounter));
+
+
+		"cap stops invalid access"
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Global.iVal1 = Global.bot.buttonsFrameCounts[Global.iVal0];
+			If(Count Of(Last Of(Global.iVal1)) == 1000);
+				Global.iVal1[Count Of(Global.iVal1)] = Array(Global.bot.replayFrameCounter);
+			Else;
+				Modify Global Variable At Index(iVal1, Count Of(Global.iVal1) - 1, Append To Array, Global.bot.replayFrameCounter);
+			End;
+			Global.bot.buttonsFrameCounts[Global.iVal0] = Global.iVal1;
+			Global.logBuffer = Custom String("{0}{1} \n", Global.logBuffer, Custom String("a butT[{0}] {1}", Global.iVal0, Global.bot.replayFrameCounter));
+		End;
+		Enable Inspector Recording;
+		Log To Inspector(Global.logBuffer);
+		Disable Inspector Recording;
 	}
 }
 
@@ -825,13 +895,13 @@ rule("populate visualizer SUBROUTINE")
 		Global.runningFrameSum = Global.frameSum;
 		"place iwts for throttle; color accordingly"
 		For Global Variable(iVal0, Count Of(Global.bot.throttleFrameCounts) - 1, -1, -1);
-			Global.runningFrameSum -= Global.bot.throttleFrameCounts[Global.iVal0 / 1000][Global.iVal0 % 1000];
+			Global.runningFrameSum -= Global.bot.throttleFrameCounts[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000];
 			"place the leftmost pip"
 			If(Global.runningFrameSum <= Global.selectedFrame);
 				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(
 					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
-					X Component Of(Global.bot.throttles[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
+					X Component Of(Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
 					* 127.500, 255), Default Visibility);
 				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
 				Break;
@@ -840,22 +910,22 @@ rule("populate visualizer SUBROUTINE")
 					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
 					* World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(Local Player),
 					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
-					Global.bot.throttles[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500,
+					Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 0, (Z Component Of(Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500,
 					255), Default Visibility);
 				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
 			End;
 		End;
 		Global.runningFrameSum = Global.frameSum;
 		For Global Variable(iVal0, Count Of(Global.bot.facingFrameCounts) - 1, -1, -1);
-			Global.runningFrameSum -= Global.bot.facingFrameCounts[Global.iVal0 / 1000][Global.iVal0 % 1000];
+			Global.runningFrameSum -= Global.bot.facingFrameCounts[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000];
 			"place the leftmost pip"
 			If(Global.runningFrameSum <= Global.selectedFrame);
 				"cant be bothered"
 				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(
 					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
-					X Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
-					* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+					X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
+					* 127.500, (Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
 				Break;
 			Else If(Global.runningFrameSum < Global.iVal1);
@@ -864,8 +934,8 @@ rule("populate visualizer SUBROUTINE")
 					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
 					* World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(Local Player),
 					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
-					Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (
-					Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+					Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (
+					Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
 			End;
 		End;
@@ -1429,8 +1499,15 @@ rule("begin record SUBROUTINE")
 		"wait for slow motion to reach full speed"
 		Set Slow Motion(100);
 		All Players(All Teams).replaying = False;
+		"init state"
+		Global.bot.initPos = Position Of(Global.bot);
+		Global.logBuffer = Custom String("p {0}", 1000 * Global.bot.initPos);
+		Call Subroutine(pushLog);
+
 		Call Subroutine(tpAllBotsToStart);
+
 		Wait(0.016, Ignore Condition);
+
 		Call Subroutine(exitMenu);
 		"disable inputs"
 		If(Global.disableAbilitiesInRecord);
@@ -1459,9 +1536,12 @@ rule("begin record SUBROUTINE")
 		End;
 		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
 		Global.bot.replayFrameCounter = 0;
+
 		"init state"
 		Global.bot.initFacing = Facing Direction Of(Host Player);
-		Global.bot.initPos = Position Of(Global.bot);
+		Global.logBuffer = Custom String("f {0}", 1000 * Global.bot.initFacing);
+		Call Subroutine(pushLog);
+
 		Call Subroutine(initBotArrays);
 		Global.bot.replaying = False;
 		Global.recording = True;
@@ -1556,18 +1636,20 @@ rule("init bot data SUBROUTINE")
 
 	actions
 	{
+		Global.logBuffer = Custom String("r");
 		"init arrays"
-		Global.bot.throttles = Array(Throttle Of(Host Player));
-		Global.bot.throttleFrameCounts = Array(1);
+		Global.bot.throttles = Array(Array(Throttle Of(Host Player)));
+		Global.bot.throttleFrameCounts = Array(Empty Array);
 		"facing"
-		Global.bot.facings = Array(Facing Direction Of(Host Player));
-		Global.bot.facingFrameCounts = Array(1);
+		Global.bot.facings = Array(Array(Facing Direction Of(Host Player)));
+		Global.bot.facingFrameCounts = Array(Empty Array);
 		"weapon"
 		Global.bot.weapon = Array(Weapon(Host Player));
-		Global.bot.weaponFrameCounts = Array(1);
+		Global.bot.weaponFrameCounts = Array(Empty Array);
 		"input buttons"
 		Global.bot.initButtonStates = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
-		Global.bot.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(1));
+		Global.bot.buttonsFrameCounts = Mapped Array(Global.allButtons, Array(Empty Array));
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -1622,38 +1704,49 @@ rule("cut bot data SUBROUTINE")
 
 	actions
 	{
+		Global.logBuffer = Custom String("c");
         "cut from 0 to idx + 1"
 		Global.bot.throttles = Array Slice(Global.bot.throttles, 0, Global.bot.replayThrottleIndex / 1000 + 1);
         Global.bot.throttles[Count Of(Global.bot.throttles) - 1] = 
             Array Slice(Global.bot.throttles[Count Of(Global.bot.throttles) - 1], 0, (Global.bot.replayThrottleIndex + 1) % 1000);
-
-        "cut from 0 to idx + 1"
+		"cut from 0 to idx + 1"
 		Global.bot.throttleFrameCounts = Array Slice(Global.bot.throttleFrameCounts, 0, Global.bot.replayThrottleIndex / 1000 + 1);
         Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts) - 1] = 
             Array Slice(Global.bot.throttleFrameCounts[Count Of(Global.bot.throttleFrameCounts) - 1], 0, Global.bot.replayThrottleIndex % 1000);
-		
-        "cut from 0 to idx + 1"
+		Global.logBuffer = Custom String("{0} {1}", Global.logBuffer, Global.bot.replayThrottleIndex);
+        
+		"cut from 0 to idx + 1"
         Global.bot.facings = Array Slice(Global.bot.facings, 0, Global.bot.replayFacingIndex + 1 / 1000 + 1);
 		Global.bot.facings[Count Of(Global.bot.facings) - 1] = 
             Array Slice(Global.bot.facings[Count Of(Global.bot.facings) - 1], 0, (Global.bot.replayFacingIndex + 1) % 1000);
-        
         "cut from 0 to idx + 1"
         Global.bot.facingFrameCounts = Array Slice(Global.bot.facingFrameCounts, 0, Global.bot.replayFacingIndex / 1000 + 1);
 		Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts) - 1] = 
             Array Slice(Global.bot.facingFrameCounts[Count Of(Global.bot.facingFrameCounts) - 1], 0, Global.bot.replayFacingIndex % 1000);
+		Global.logBuffer = Custom String("{0} {1}", Global.logBuffer, Global.bot.replayFacingIndex);
         
-        "cut from 0 to idx + 1"
+		"cut from 0 to idx + 1"
         Global.bot.weapon = Array Slice(Global.bot.weapon, 0, Global.bot.replayWeaponIndex + 1 / 1000 + 1);
         Global.bot.weapon[Count Of(Global.bot.weapon) - 1] = 
             Array Slice(Global.bot.weapon[Count Of(Global.bot.weapon) - 1], 0, (Global.bot.replayWeaponIndex + 1) % 1000);
-
         "cut from 0 to idx + 1"
         Global.bot.weaponFrameCounts = Array Slice(Global.bot.weaponFrameCounts, 0, Global.bot.replayWeaponIndex / 1000 + 1);
-		
+		Global.bot.weaponFrameCounts[Count Of(Global.bot.weaponFrameCounts) - 1] = Array Slice(Global.bot.weaponFrameCounts[Count Of(Global.bot.weaponFrameCounts) - 1], 0, (Global.bot.replayWeaponIndex + 1) % 1000);
+		Global.logBuffer = Custom String("{0} {1}", Global.logBuffer, Global.bot.replayWeaponIndex);
+
         "cut from 0 to idx + 1"
-        Global.bot.buttonsFrameCounts = Mapped Array(Global.bot.buttonsFrameCounts, Array Slice(Current Array Element, 0,
-	    
-        Global.bot.replayButtonsIndices[Current Array Index] / 1000 + 1));
+        Global.bot.buttonsFrameCounts = Mapped Array(Global.bot.buttonsFrameCounts, Array Slice(Current Array Element, 0, Global.bot.replayButtonsIndices[Current Array Index] / 1000 + 1));
+
+		Global.logBuffer = Custom String("{0} {", Global.logBuffer);
+		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
+			Global.iVal1 = Global.bot.buttonsFrameCounts[Global.iVal0];
+			Global.iVal1[Count Of(Global.iVal1) - 1] = Array Slice(Global.iVal1[Count Of(Global.iVal1) - 1], 0, Global.bot.replayButtonsIndices[Global.iVal0] % 1000);
+			Global.bot.buttonsFrameCounts[Global.iVal0] = Global.iVal1;
+			Global.logBuffer = Custom String("{0} {1}", Global.logBuffer, Global.bot.replayButtonsIndices[Global.iVal0]);
+		End;
+		Global.logBuffer = Custom String("{0} }", Global.logBuffer);
+
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -1706,6 +1799,8 @@ rule("tp bot here SUBROUTINE")
 		If(Event Player.totalFrames == 0);
 			Global.bot.initPos = Position Of(Host Player);
 			Global.bot.initFacing = Facing Direction Of(Host Player);
+			Global.logBuffer = Custom String("p {0} \nf {1}", 1000 * Global.bot.initPos, 1000 * Global.bot.initFacing);
+			Call Subroutine(pushLog);
 		End;
 	}
 }
@@ -1835,17 +1930,22 @@ rule("create dummy bot SUBROUTINE")
 				Break;
 			End;
 		End;
-		If(Entity Exists(Global.bot));
+		If(Hero Of(Global.bot) == True);
 			Create Dummy Bot(Hero Of(Global.bot), Global.iVal1, Global.iVal0, Position Of(Host Player), Facing Direction Of(Host Player));
 		Else;
 			Create Dummy Bot(Hero Of(Host Player), Global.iVal1, Global.iVal0, Position Of(Host Player), Facing Direction Of(Host Player));
 		End;
 		If(Entity Exists(Last Created Entity));
 			Global.bot = Last Created Entity;
+			Global.bot.number = Slot Of(Global.bot) + ((Team Of(Global.bot) == Team 1) ? 0 : 24);
+			Global.logBuffer = Custom String("n {0} {1} {2}", Global.bot.number, Hero Of(Global.bot), ((Team Of(Global.bot) == Team 1) ? 0 : ((Team Of(Global.bot) == Team 2) ? 1 : 2)));
+			Call Subroutine(pushLog);
 			Wait Until(Has Spawned(Global.bot), 9999);
 			Set Facing(Global.bot, Facing Direction Of(Host Player), To World);
 			Global.bot.initPos = Position Of(Host Player);
 			Global.bot.initFacing = Facing Direction Of(Host Player);
+			Global.logBuffer = Custom String("p {0} \nf {1}", 1000 * Global.bot.initPos, 1000 * Global.bot.initFacing);
+			Call Subroutine(pushLog);
 			Call Subroutine(updateMenuString);
 		Else;
 			Small Message(All Players(All Teams), Custom String("failed to create bot"));
@@ -1876,6 +1976,8 @@ rule("change bot hero SUBROUTINE")
 		disabled Stop Forcing Player To Be Hero(Global.bot);
 		Start Forcing Player To Be Hero(Host Player, Global.heroBeforeBotHeroSelect);
 		Stop Forcing Player To Be Hero(Host Player);
+		Global.logBuffer = Custom String("h {0}", Global.bot.selectedHero);
+		Call Subroutine(pushLog);
 		Wait(0.016, Ignore Condition);
 		Teleport(Host Player, Global.posBeforeUnspawn);
 		Set Facing(Host Player, Global.facingBeforeUnspawn, To World);
@@ -1902,11 +2004,14 @@ rule("remove bot SUBROUTINE")
 		End;
 		"select the next bot"
 		Global.iVal0 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+		
 		Global.iVal0 = Global.iVal0[(Index Of Array Value(Global.iVal0, Global.bot) + (Count Of(Global.iVal0) - 1)) % Count Of(
 			Global.iVal0)];
 		Destroy Dummy Bot(Team Of(Global.bot), Slot Of(Global.bot));
 		Global.bot = Global.iVal0;
+		Global.logBuffer = Custom String("x \nb {0}", Global.bot.number);
 		Call Subroutine(updateMenuString);
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -1924,7 +2029,10 @@ rule("change bot SUBROUTINE")
 		"cant be bothered to do properly + all bots arr contains no dupes"
 		Global.bot = Global.iVal0[(Index Of Array Value(Global.iVal0, Global.bot) + Count Of(Global.iVal0) + Global.menuIncrementSign)
 			% Count Of(Global.iVal0)];
+		Global.logBuffer = Custom String("b {0}", Global.bot.number);
+
 		Global.selectedFrame = Min(Global.selectedFrame, Global.bot.totalFrames);
+		Call Subroutine(pushLog);
 	}
 }
 
@@ -2009,6 +2117,28 @@ rule("enable all for host SUBROUTINE")
 			Allow Button(Host Player, Global.allButtons[Global.iVal0]);
 		End;
 		Set Jump Enabled(Host Player, True);
+	}
+}
+
+rule("refresh bot on request")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Event Player.doRefresh == True;
+		disabled Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Call Subroutine(refreshBot);
+		Event Player.doRefresh = False;
 	}
 }
 
@@ -2174,8 +2304,8 @@ disabled rule("testFx")
 		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -30 * Normalize(Cross Product(Facing Direction Of(
 			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.250, Do Not Clip, Visible To and Position, Custom Color((
-			X Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
-			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+			X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 		Global.iVal1 = Custom String("");
 		For Global Variable(iVal0, 0, 50, 10);
 			Global.iVal1 = Custom String("{0}{1}", Ability Icon String(Hero(Ana), Button(Ability 2)), Global.iVal1);
@@ -2184,8 +2314,8 @@ disabled rule("testFx")
 		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -40 * Normalize(Cross Product(Facing Direction Of(
 			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.250, Do Not Clip, Visible To and Position, Custom Color((
-			X Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
-			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+			X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 		Global.iVal1 = Custom String("");
 		For Global Variable(iVal0, 0, 50, 10);
 			Global.iVal1 = Custom String("{0}{1}", Ability Icon String(Hero(Ana), Button(Ultimate)), Global.iVal1);
@@ -2194,14 +2324,14 @@ disabled rule("testFx")
 		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -50 * Normalize(Cross Product(Facing Direction Of(
 			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.750, Do Not Clip, Visible To and Position, Custom Color((
-			X Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
-			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+			X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 		"cant be bothered"
 		Create In-World Text(Local Player, Global.iVal1, Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
 			Local Player) + 0 * World Vector Of(Left, Local Player, Rotation) + -50 * Normalize(Cross Product(Facing Direction Of(
 			Local Player), World Vector Of(Left, Local Player, Rotation)))), 1.750, Do Not Clip, Visible To and Position, Custom Color((
-			X Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1)
-			* 127.500, (Z Component Of(Global.bot.facings[Global.iVal0 / 1000][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
+			X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1)
+			* 127.500, (Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255), Default Visibility);
 	}
 }
 
@@ -2266,6 +2396,48 @@ rule("bot uses dva bomb - reattach")
 	}
 }
 
+rule("bot override detection")
+{
+	event
+	{
+		Player Left Match;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Is Dummy Bot(Event Player) == True;
+	}
+
+	actions
+	{
+		Global.logBuffer = Custom String("----------BOT OVERRIDE----------");
+		Small Message(All Players(All Teams), Custom String("WARNING: BOT OVERRIDEN, REMEMBER TO SET LOBBY TO INVITE ONLY"));
+		Wait(0.096, Ignore Condition);
+		Small Message(All Players(All Teams), Custom String("to recover your save, remove first override log and all proceeding logs, then reload that file"));
+		Wait(0.096, Ignore Condition);
+		Small Message(All Players(All Teams), Custom String("see workshop.codes page for more info"));
+	}
+}
+
+rule("push log SUBROUTINE") {
+	event
+	{
+		Subroutine;
+		pushLog;
+	}
+
+	actions {
+		If (String Length(Global.logBuffer) > 0);
+			Enable Inspector Recording;
+			Log To Inspector(Global.logBuffer);
+			Disable Inspector Recording;
+			Global.logBuffer = Custom String("");
+		End;
+	}
+}
+
 rule("save data SUBROUTINE")
 {
 	event
@@ -2278,15 +2450,17 @@ rule("save data SUBROUTINE")
 	{
 		Global.data = Empty Array;
 		Global.iVal1 = Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element));
+
+		"scale 1000x"
 		For Global Variable(iVal0, 0, Count Of(Global.iVal1), 1);
 			Global.iVal2 = Global.iVal1[Global.iVal0];
-			Global.data[Global.iVal0] = Array(Hero Of(Global.iVal2), Team Of(Global.iVal2), Mapped Array(Global.iVal2.throttles, Vector(1000,
-				1000, 1000) * Current Array Element), Global.iVal2.throttleFrameCounts, Mapped Array(Global.iVal2.facings, Vector(1000, 1000,
-				1000) * Current Array Element), Global.iVal2.facingFrameCounts, Global.iVal2.initButtonStates, Global.iVal2.buttonsFrameCounts,
-				Global.iVal2.weapon, Global.iVal2.weaponFrameCounts, 1000 * X Component Of(Global.iVal2.initFacing), 1000 * Y Component Of(
-				Global.iVal2.initFacing), 1000 * Z Component Of(Global.iVal2.initFacing), 1000 * X Component Of(Global.iVal2.initPos),
-				1000 * Y Component Of(Global.iVal2.initPos), 1000 * Z Component Of(Global.iVal2.initPos), Global.iVal2.totalFrames);
+			Global.data[Global.iVal0] = Array(Hero Of(Global.iVal2), Team Of(Global.iVal2), 
+			Global.iVal2.throttles, Global.iVal2.throttleFrameCounts, 
+			Global.iVal2.facings, Global.iVal2.facingFrameCounts, 
+			Global.iVal2.initButtonStates, Global.iVal2.buttonsFrameCounts,
+				Global.iVal2.weapon, Global.iVal2.weaponFrameCounts, 1000 * Global.iVal2.initFacing, 1000 * Global.iVal2.initPos, Global.iVal2.totalFrames);
 		End;
+
 		Enable Inspector Recording;
 		Disable Inspector Recording;
 		Small Message(All Players(All Teams), Custom String("check inspector for global data"));
@@ -2294,7 +2468,7 @@ rule("save data SUBROUTINE")
 	}
 }
 
-rule("compile together the data")
+rule("gather data SUBROUTINE")
 {
 	event
 	{
@@ -2357,6 +2531,8 @@ rule("load data if available")
 					Global.iVal12[2] += 1;
 				End;
 				Global.bot = Last Created Entity;
+				Global.bot.number = Slot Of(Global.bot) + ((Team Of(Global.bot) == Team 1) ? 0 : 24);
+				Global.logBuffer = Custom String("n {0} {1} {2}", Global.bot.number, Hero Of(Global.bot), ((Team Of(Global.bot) == Team 1) ? 0 : ((Team Of(Global.bot) == Team 2) ? 1 : 2)));
 				Global.bot.selectedHero = Global.iVal11[0];
 				Global.iVal10 = Global.iVal11[2];
 				Call Subroutine(decompressVectors);
@@ -2381,6 +2557,7 @@ rule("load data if available")
 			Global.iVal11 = Null;
 			Small Message(All Players(All Teams), Custom String("data loaded - all bots initialized"));
 		End;
+		Call Subroutine(pushLog);
 	}
 }
 
