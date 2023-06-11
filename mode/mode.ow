@@ -28,6 +28,7 @@ settings
 		{
 			Game Mode Start: Manual
 			Hero Limit: Off
+			Respawn Time Scalar: 35%
 		}
 	}
 
@@ -248,21 +249,60 @@ rule("init global")
 		Global.logBuffer = Custom String("");
 		Global.timelineFrameAdvance = 50;
 		Global.timelineFrameLength = 440 / Global.timelineFrameAdvance;
-		Global.menuActions = Array(Custom String("replay"), Custom String("replay at frame"), Custom String("record from current bot pos"),
-			Custom String("record at frame"), Custom String(" \ntp all bots to start"), Custom String("tp bot to start"), Custom String(
-			"tp bot here"), Custom String("tp to bot"), Custom String(" \nchange hero"), Custom String("swap teams"), Custom String(
-			" \nAdd Bot Team 1"), Custom String("Add Bot Team 2"), Custom String("Add Bot Deathmatch"), Custom String("change bot hero"),
-			Custom String("Remove bot"), Custom String(" \nsave data to global"));
-		Global.menuValueLabels = Array(Custom String(" \nbot "), Custom String("selected frame "), Custom String(" \n3p Cam "),
-			Custom String("watch bot in replay"), Custom String("bot invis during edit "), Custom String(
-			"disable abilities while recording "), Custom String("show data "), Custom String("timeline next {0} frames ",
-			Global.timelineFrameAdvance), Custom String(" \nrecord speed "), Custom String("replay speed "));
-		Global.itemTooltips = Array(Custom String("play at replay speed \ninteract + reload stops replay"), Custom String(
-			"plays to frame normally \nthen slows to replay speed \ninteract + reload stops replay"), Custom String(
-			"record from bot's \ncurrent position \ninteract + reload stops record"), Custom String(
-			"plays to frame \nthen begins recording \ninteract + reload stops record"), Null, Null, Null, Null, Null, Null, Null, Null,
-			Null, Null, Null, Null, Null, Null, Null, Null, Null, Null, Custom String(
-			"Displays a timeline containing the \n{0} frames after selected frame", Global.timelineFrameAdvance), Null, Null);
+		Global.menuActions = Array(
+			Custom String("replay"), 
+			Custom String("replay at frame"), 
+			Custom String("record from current bot pos"),
+			Custom String("record at frame"), 
+			Custom String(" \ntp all bots to start"), 
+			Custom String("tp bot to start"), 
+			Custom String("tp bot here"), 
+			Custom String("tp to bot"), 
+			Custom String(" \nchange hero"), 
+			Custom String("swap teams"),
+			Custom String(" \nAdd Bot Team 1"), 
+			Custom String("Add Bot Team 2"), 
+			Custom String("Add Bot Deathmatch"), 
+			Custom String("change bot hero"),
+			Custom String("Remove bot"), 
+			Custom String(" \nFlash Inspector"));
+		Global.menuValueLabels = Array(
+			Custom String(" \nbot "), 
+			Custom String("selected frame "), 
+			Custom String(" \n3p Cam "),
+			Custom String("watch bot in replay"), 
+			Custom String("bot invis during edit "), 
+			Custom String("disable abilities while recording "),
+			Custom String("show data "), 
+			Custom String("timeline next {0} frames ", Global.timelineFrameAdvance), 
+			Custom String(" \nrecord speed "), 
+			Custom String("replay speed "));
+		Global.itemTooltips = Array(
+			Custom String("play at replay speed \ninteract + reload stops replay"), 
+			Custom String("plays to frame normally \nthen slows to replay speed \ninteract + reload stops replay"), 
+			Custom String("record from bot's \ncurrent position \ninteract + reload stops record"), 
+			Custom String("plays to frame \nthen begins recording \ninteract + reload stops record"), 
+			Null, 
+			Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null,
+			Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Null, 
+            Custom String("Displays a timeline containing the \n{0} frames after selected frame", Global.timelineFrameAdvance), 
+			Null, 
+            Null);
 		Global.logBuffer = Custom String("m {0}", Current Map);
 		Call Subroutine(pushLog);
 	}
@@ -887,7 +927,7 @@ rule("init visualizer SUBROUTINE")
 	}
 }
 
-rule("populate visualizer SUBROUTINE")
+rule("populate timeline SUBROUTINE")
 {
 	event
 	{
@@ -897,63 +937,83 @@ rule("populate visualizer SUBROUTINE")
 
 	actions
 	{
-		Global.iVal1 = Global.selectedFrame + Global.timelineFrameAdvance;
-		"get frame sum"
-		Global.frameSum = Global.bot.totalFrames;
-		Global.runningFrameSum = Global.frameSum;
-		"place iwts for throttle; color accordingly"
-		For Global Variable(iVal0, Count Of(Global.bot.throttleTimings) - 1, -1, -1);
-			Global.runningFrameSum -= Global.bot.throttleTimings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000];
-			"place the leftmost pip"
-			If(Global.runningFrameSum <= Global.selectedFrame);
-				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
-					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(
-					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
-					X Component Of(Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 0, (
-					Z Component Of(Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255),
-					Default Visibility);
-				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
-				Break;
-			Else If(Global.runningFrameSum < Global.iVal1);
-				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
-					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
-					* World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(Local Player),
-					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
-					Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 0, (Z Component Of(
-					Global.bot.throttles[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255),
-					Default Visibility);
-				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+		"place iwts for throttle; color according to component values"
+		For Global Variable(iVal0, Count Of(Global.bot.throttles) - 1,  -1, -1);
+			For Global Variable(iVal1, Count Of(Global.bot.throttles[Global.iVal0]) - 1, -1, -1);
+				Global.iVal2 = Global.bot.throttleTimings[Global.iVal0 + ((Global.iVal1 + 1) >= 1000)][(Global.iVal1 + 1) % 1000];
+				"if is the last but also not the first (can be first and last if only 1 elem)"
+				If (!(Global.iVal0 == 0 && Global.iVal1 == 0) && !Global.iVal2);
+				""
+				Else If(Global.iVal2 < (Global.selectedFrame + Global.timelineFrameAdvance));
+					"is the leftmost pip"
+					If((Global.iVal1 == 0 && Global.iVal0 == 0) || 
+					   (Global.iVal2 <= Global.selectedFrame));
+
+						Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+							Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(
+							Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, 
+							
+							Custom Color((
+							X Component Of(Global.bot.throttles[Global.iVal0][Global.iVal1]) + 1) * 127.500, 0, (
+							Z Component Of(Global.bot.throttles[Global.iVal0][Global.iVal1]) + 1) * 127.500, 255),
+							Default Visibility);
+
+						Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+						Break;
+					Else;
+						Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+							Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.iVal2 - Global.selectedFrame))
+							* World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(Local Player),
+							World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, 
+							Custom Color((
+								X Component Of(Global.bot.throttles[Global.iVal0][Global.iVal1]) + 1) * 127.500, 0, (
+								Z Component Of(Global.bot.throttles[Global.iVal0][Global.iVal1]) + 1) * 127.500, 255),
+							Default Visibility);
+						Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+					End;
+				End;
 			End;
 		End;
-		Global.runningFrameSum = Global.frameSum;
-		For Global Variable(iVal0, Count Of(Global.bot.facingTimings) - 1, -1, -1);
-			Global.runningFrameSum -= Global.bot.facingTimings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000];
-			"place the leftmost pip"
-			If(Global.runningFrameSum <= Global.selectedFrame);
-				"cant be bothered"
-				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
-					Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(
-					Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((
-					X Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (
-					Y Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (
-					Z Component Of(Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255),
-					Default Visibility);
-				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
-				Break;
-			Else If(Global.runningFrameSum < Global.iVal1);
-				"cant be bothered"
-				Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
-					Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.runningFrameSum - Global.selectedFrame))
-					* World Vector Of(Left, Local Player, Rotation) + -70 * Normalize(Cross Product(Facing Direction Of(Local Player),
-					World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, Custom Color((X Component Of(
-					Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Y Component Of(
-					Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, (Z Component Of(
-					Global.bot.facings[Round To Integer(Global.iVal0 / 1000, Down)][Global.iVal0 % 1000]) + 1) * 127.500, 255),
-					Default Visibility);
-				Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+		"place pips for facing; color according to component values"
+		For Global Variable(iVal0, Count Of(Global.bot.facings) - 1,  -1, -1);
+			For Global Variable(iVal1, Count Of(Global.bot.facings[Global.iVal0]) - 1, -1, -1);
+				Global.iVal2 = Global.bot.facingTimings[Global.iVal0 + ((Global.iVal1 + 1) >= 1000)][(Global.iVal1 + 1) % 1000];
+				"if is the last but also not the first (can be first and last if only 1 elem)"
+				If (!(Global.iVal0 == 0 && Global.iVal1 == 0) && !Global.iVal2);
+				""
+				Else If(Global.iVal2 < (Global.selectedFrame + Global.timelineFrameAdvance));
+					"is the leftmost pip"
+					If((Global.iVal1 == 0 && Global.iVal0 == 0) || 
+					   (Global.iVal2 <= Global.selectedFrame));
+
+						Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+							Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(
+							Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, 
+							
+							Custom Color(
+							(X Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 
+							(Y Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 
+							(Z Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 255),
+							Default Visibility);
+
+						Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+						Break;
+					Else;
+						Create In-World Text(Local Player, Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(
+							Local Player) + Evaluate Once(220 - Global.timelineFrameLength * (Global.iVal2 - Global.selectedFrame))
+							* World Vector Of(Left, Local Player, Rotation) + -60 * Normalize(Cross Product(Facing Direction Of(Local Player),
+							World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip, Visible To and Position, 
+							Custom Color(
+								(X Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 
+								(Y Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 
+								(Z Component Of(Global.bot.facings[Global.iVal0][Global.iVal1]) + 1) * 127.500, 255),
+							Default Visibility);
+						Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
+					End;
+				End;
 			End;
 		End;
-		"place frame scrubber"
+		"place replay frame marker"
 		Create In-World Text(
 			Global.bot.replayFrameCounter >= Global.selectedFrame && Global.bot.replayFrameCounter < Global.selectedFrame + 50 ? Local Player : 0,
 			Custom String("|"), Update Every Frame(Eye Position(Local Player) + 200 * Facing Direction Of(Local Player) + (
@@ -961,13 +1021,13 @@ rule("populate visualizer SUBROUTINE")
 			Local Player, Rotation) + -80 * Normalize(Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player,
 			Rotation)))), 4, Do Not Clip, Visible To and Position, Color(White), Default Visibility);
 		Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
-		"cant be bothered"
+		"left most frame number"
 		Create In-World Text(Local Player, Custom String("{0}", Global.selectedFrame), Update Every Frame(Eye Position(Local Player)
 			+ 200 * Facing Direction Of(Local Player) + 220 * World Vector Of(Left, Local Player, Rotation) + -90 * Normalize(
 			Cross Product(Facing Direction Of(Local Player), World Vector Of(Left, Local Player, Rotation)))), 2.500, Do Not Clip,
 			Visible To and Position, Color(Yellow), Default Visibility);
 		Modify Global Variable(visualizerTxt, Append To Array, Last Text ID);
-		"cant be bothered"
+		"rightmost frame number"
 		Create In-World Text(Local Player, Custom String("{0}", Min(Global.bot.totalFrames,
 			Global.timelineFrameAdvance + Global.selectedFrame)), Update Every Frame(Eye Position(Local Player)
 			+ 200 * Facing Direction Of(Local Player) + Evaluate Once(220 - Min(Global.bot.totalFrames - Global.selectedFrame,
