@@ -16,19 +16,45 @@ settings
 
 	modes
 	{
-		Skirmish
+		disabled Assault
 		{
-			disabled maps
-			{
-				Numbani
-			}
+			Capture Speed Modifier: 500%
 		}
 
-		General
+		disabled Control
+		{
+			Capture Speed Modifier: 500%
+			Score To Win: 1
+			Scoring Speed Modifier: 500%
+		}
+
+		disabled Escort
+		{
+			Payload Speed Modifier: 500%
+		}
+
+		disabled Hybrid
+		{
+			Capture Speed Modifier: 500%
+			Payload Speed Modifier: 500%
+		}
+
+		disabled Push
+		{
+			TS-1 Push Speed Modifier: 500%
+			TS-1 Walk Speed Modifier: 500%
+		}
+
+		Skirmish
 		{
 			Game Mode Start: Manual
 			Hero Limit: Off
 			Respawn Time Scalar: 35%
+
+			disabled maps
+			{
+				Numbani
+			}
 		}
 	}
 
@@ -340,6 +366,7 @@ rule("skip asembling")
 
 	actions
 	{
+		Wait (1, Ignore Condition);
 		Set Match Time(0);
 		Wait Until(Is In Setup, 99999);
 		Set Match Time(0);
@@ -361,6 +388,8 @@ rule("match time")
 
 	actions
 	{
+		Wait(60, Ignore Condition);
+		Pause Match Time;
 		Set Match Time(3599);
 	}
 }
