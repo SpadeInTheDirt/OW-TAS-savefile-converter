@@ -1,5 +1,5 @@
 # OW-TAS-savefile-converter
-v0.2.0
+v1.0.2
 This version is incompatible with saves before v0.2.0
 
 Converts global variables copied from Overwatch Workshop Inspector to a savefile that can be pasted into the game
@@ -22,6 +22,7 @@ Log Commands:
 - a - append to bot's var
 - p - set bot init pos
 - f - set bot init facing
+- h - set bot's hero
 - t - set bot total framecount
 
 Bot append uses a param that is a keyword:

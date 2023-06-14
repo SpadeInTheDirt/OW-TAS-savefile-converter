@@ -1,6 +1,7 @@
 import cmd
 import sys
 import os
+import math
 
 STR_SIZE = 128
 MAX_ARRAY_SIZE = 1000
@@ -238,13 +239,14 @@ def num_to_team(n):
         the data is split in parts bc of rule size limit, 
         each part appended together composes the bot's data at dataIdx 
 '''
-def to_subroutine(dataIdx, part, data):
+def to_subroutine(subNum, part, data):
+    dataIdx = math.floor(subNum / 2)
     ret = "rule(\""+"data {idx}.{part} SUBROUTINE".format(idx=dataIdx, part=part) + "\") {"
     if (part == 0):
-        ret += "event { Subroutine; " + "loadData{subNum}".format(subNum=dataIdx) + "; } actions{"
+        ret += "event { Subroutine; " + "loadData{subNum}".format(subNum=subNum) + "; } actions{"
         ret += "Global.data[{idx}] = {data};".format(idx=dataIdx, data=data)
     else:
-        ret += "event { Subroutine; " + "loadData{subNum}".format(subNum=2 * dataIdx + part) + "; } actions{"
+        ret += "event { Subroutine; " + "loadData{subNum}".format(subNum=subNum) + "; } actions{"
         ret += "Modify Global Variable At Index(data, {idx}, Append To Array, {data});".format(idx=dataIdx, data=data)
 
     ret += "}}"
@@ -361,7 +363,11 @@ class Bot:
     
     def set_init_fac(self, fac):
         self.initFac = fac
-    
+
+    def set_hero(self, hero):
+        self.hero = hero
+
+
     def set_frame_count(self, count):
         self.frameCount = count
 
@@ -382,7 +388,9 @@ class LogConverter(cmd.Cmd):
             subNum = 0
             for i in range(len(botParts)):
                 contents += to_subroutine(subNum, 0, botParts[i][0])
-                contents += to_subroutine(subNum, 1, botParts[i][1])
+                contents += "\n"
+                contents += to_subroutine(subNum + 1, 1, botParts[i][1])
+                contents += "\n"
                 subNum += 2
             
             print(contents)
@@ -407,7 +415,7 @@ class LogConverter(cmd.Cmd):
         self.bot = int(args[0])
 
     def do_x(self, arg):
-        self.data[int(arg)] = None
+        self.data[self.bot] = None
 
     def do_r(self, arg):
         initThr, arg = read_vector(arg)
@@ -428,7 +436,8 @@ class LogConverter(cmd.Cmd):
         word, arg = read_word(arg)
         wepIdx = int(word)
         arg = arg[find_nth_occurence(arg, '{') + 1 : find_nth_occurence(arg, '}') - 1]
-        butIdxes = [ int(x) for x in arg.split(',') ]
+        # print(arg.split())
+        butIdxes = [ int(x) for x in arg.split() ]
         self.data[self.bot].cut(thrIdx, facIdx, wepIdx, butIdxes)
 
     def do_a(self, arg):
@@ -446,6 +455,7 @@ class LogConverter(cmd.Cmd):
             self.data[self.bot].app(var, int(arg))
 
     def do_p(self, arg):
+        # print(arg)
         pos, arg = read_vector(arg)
         self.data[self.bot].set_init_pos(pos)
 
@@ -453,6 +463,9 @@ class LogConverter(cmd.Cmd):
         fac, arg = read_vector(arg)
         self.data[self.bot].set_init_fac(fac)
     
+    def do_h(self, arg):
+        self.data[self.bot].set_hero(arg)
+
     def do_t(self, arg):
         count = int(arg)
         self.data[self.bot].set_frame_count(count)

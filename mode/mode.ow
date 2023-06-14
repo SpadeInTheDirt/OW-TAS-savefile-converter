@@ -50,11 +50,11 @@ settings
 			Game Mode Start: Manual
 			Hero Limit: Off
 			Respawn Time Scalar: 35%
+		}
 
-			disabled maps
-			{
-				Numbani
-			}
+		General
+		{
+			Game Mode Start: Manual
 		}
 	}
 
