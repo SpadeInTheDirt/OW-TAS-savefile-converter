@@ -131,6 +131,13 @@ variables
 		52: iVal12
 		53: iVal13
 		54: logBuffer
+		55: map
+		56: arrayToText
+		57: arrayAsText
+		58: buttonDataText
+		59: buttonDataTextWidth
+		60: buttonDataOn
+		61: buttonSelected
 
 	player:
 		0: throttles
@@ -205,6 +212,10 @@ subroutines
 	39: convertTop8ToNum
 	40: capBotRecord
 	41: pushLog
+	42: arrayToText
+	43: toggleButtonData
+	44: populateButtonData
+	45: changeButtonSelected
 	104: loadData0
 	105: loadData1
 	106: loadData2
@@ -271,43 +282,47 @@ rule("init global")
 		Global.timer = 100;
 		Global.disableAbilitiesInRecord = True;
 		Global.showData = True;
+		Global.buttonDataOn = False;
+		Global.buttonSelected = 0;
 		"log commands: n - make a new bot, b - change to bot, x - remove bot, r - reset bot data, c - cut bot's data, a - append to bot's var, p - set bot init pos, f - set bot init facing"
 		Global.logBuffer = Custom String("");
 		Global.timelineFrameAdvance = 50;
 		Global.timelineFrameLength = 440 / Global.timelineFrameAdvance;
 		Global.menuActions = Array(
-			Custom String("replay"), 
+			Custom String("\nreplay"), 
 			Custom String("replay at frame"), 
-			Custom String("record from current bot pos"),
-			Custom String("record at frame"), 
-			Custom String(" \ntp all bots to start"), 
-			Custom String("tp bot to start"), 
-			Custom String("tp bot here"), 
+			Custom String("\nrecord from current bot pos"),
+			Custom String("\nrecord at frame"), 
+			Custom String("\n \ntp all bots to start"), 
+			Custom String("\ntp bot to start"), 
+			Custom String("\ntp bot here"), 
 			Custom String("tp to bot"), 
-			Custom String(" \nchange hero"), 
+			Custom String("\n \nchange hero"), 
 			Custom String("swap teams"),
-			Custom String(" \nAdd Bot Team 1"), 
+			Custom String("\n \nAdd Bot Team 1"), 
 			Custom String("Add Bot Team 2"), 
-			Custom String("Add Bot Deathmatch"), 
-			Custom String("change bot hero"),
+			Custom String("\nAdd Bot Deathmatch"), 
+			Custom String("\nchange bot hero"),
 			Custom String("Remove bot"), 
-			Custom String(" \nFlash Inspector"));
+			Custom String("\n \nFlash Inspector"));
 		Global.menuValueLabels = Array(
-			Custom String(" \nbot "), 
-			Custom String("selected frame "), 
-			Custom String(" \n3p Cam "),
-			Custom String("watch bot in replay"), 
-			Custom String("bot invis during edit "), 
-			Custom String("disable abilities while recording "),
-			Custom String("show data "), 
-			Custom String("timeline next {0} frames ", Global.timelineFrameAdvance), 
-			Custom String(" \nrecord speed "), 
+			Custom String("\n \nbot "), 
+			Custom String("\nselected frame "), 
+			Custom String("\n \n3p Cam "),
+			Custom String("replay watch bot "), 
+			Custom String("\nbot invis while recording "), 
+			Custom String("\ndisable abilities while recording "),
+			Custom String("\n \nshow data "), 
+			Custom String("\ntimeline next {0} frames ", Global.timelineFrameAdvance), 
+			Custom String("\nshow button data "),
+			Custom String("\nbutton selected "),
+			Custom String("\n \nrecord speed "), 
 			Custom String("replay speed "));
 		Global.itemTooltips = Array(
 			Custom String("play at replay speed \ninteract + reload stops replay"), 
-			Custom String("plays to frame normally \nthen slows to replay speed \ninteract + reload stops replay"), 
-			Custom String("record from bot's \ncurrent position \ninteract + reload stops record"), 
-			Custom String("plays to frame \nthen begins recording \ninteract + reload stops record"), 
+			Custom String("plays to frame normally then slows to replay speed \ninteract + reload stops replay"), 
+			Custom String("record from bot's current position \noverwrites bot data from beginning \ninteract + reload stops record"), 
+			Custom String("plays to frame then slows and records \noverwrites bot data from selected frame \ninteract + reload stops record"), 
 			Null, 
 			Null, 
             Null, 
@@ -318,8 +333,8 @@ rule("init global")
             Null,
 			Null, 
             Null, 
-            Null, 
-            Null, 
+            Custom String("warning: deletes bot data."), 
+            Custom String("toggles workshop inspector on and off. \nputs bot data in data variable"), 
             Null, 
             Null, 
             Null, 
@@ -327,10 +342,36 @@ rule("init global")
             Null, 
             Null, 
             Custom String("Displays a timeline containing the \n{0} frames after selected frame", Global.timelineFrameAdvance), 
-			Null, 
+			Custom String("Displays button data. shows button's \ninitial state and frames where its state changes"),
+			Null,
+			Null,
             Null);
 		Global.logBuffer = Custom String("m {0}", Current Map);
 		Call Subroutine(pushLog);
+		Global.buttonDataTextWidth = 80;
+	}
+}
+
+rule("map warning")
+{
+	event
+	{
+		Ongoing - Each Player;
+		All;
+		All;
+	}
+
+	conditions
+	{
+		Has Spawned(Event Player) == Is Alive(Event Player);
+		Global.map == True;
+		Current Map != Global.map;
+	}
+
+	actions
+	{
+		Wait(0.250, Ignore Condition);
+		Big Message(Event Player, Custom String("Warning: Map may be incompatible; Recording was made on {0}", Global.map));
 	}
 }
 
@@ -519,8 +560,10 @@ rule("vis")
 			Visible To Position Radius and Color);
 		Create HUD Text(Global.inMenu ? Local Player : 0, Null, Global.menuString, Null, Top, 1, Color(White), Color(Lime Green), Color(
 			White), Visible To and String, Default Visibility);
-		Create HUD Text(Global.inMenu ? Local Player : 0, Null, Null, Global.tooltip, Left, 1, Color(Orange), Color(Orange), Color(Orange),
+		Create HUD Text(Global.inMenu ? Local Player : 0, Null, Null, Global.tooltip, Left, 0, Color(Orange), Color(Orange), Color(Orange),
 			Visible To and String, Default Visibility);
+		Create HUD Text(Global.showData && Global.buttonDataOn ? All Players(All Teams) : Empty Array, Null, Global.buttonDataText, Null, Right, 5, Color(White), Custom Color(
+			255, 0, 255, 255), Color(White), Visible To and String, Default Visibility);
 	}
 }
 
@@ -533,7 +576,7 @@ rule("debug vis")
 
 	actions
 	{
-		Create HUD Text(Global.showData ? Local Player : 0, Custom String("{0} throttle val frame \n{1} frame val",
+		disabled Create HUD Text(Global.showData ? Local Player : 0, Custom String("{0} throttle val frame \n{1} frame val",
 			Global.bot.throttles[Round To Integer(Global.bot.replayFacingIndex / 1000, Down)][Global.bot.replayFacingIndex % 1000],
 			Global.bot.throttleTimings[Round To Integer(Global.bot.replayThrottleIndex / 20, Down)][Global.bot.replayThrottleIndex % 20]),
 			Null, Null, Right, 1, Color(White), Color(White), Color(White), Visible To and String, Default Visibility);
@@ -567,9 +610,6 @@ rule("record")
 		"tp and attach"
 		Teleport(Host Player, Position Of(Global.bot));
 		Attach Players(Host Player, Global.bot, Vector(0, 0, 0));
-		"for shadowing"
-		Global.bot.lastButtonsState = Mapped Array(Global.allButtons, False);
-		Global.bot.buttonsState = Global.bot.initButtonStates;
 		"recording; first frame was recorded in init so wait is before subroutine"
 		While(Global.recording);
 			Call Subroutine(registerInputToBot);
@@ -577,7 +617,9 @@ rule("record")
 			Wait(0.016, Ignore Condition);
 			Global.bot.replayFrameCounter += 1;
 		End;
+		
 		Call Subroutine(capBotRecord);
+		Call Subroutine(populateButtonData);
 		"stop bot shadowing buttons"
 		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
 			Stop Holding Button(Global.bot, Global.allButtons[Global.iVal0]);
@@ -645,16 +687,15 @@ rule("replay")
 			][Event Player.replayFacingIndex % 1000], 10000, To World, Direction and Turn Rate);
 		Set Weapon(Event Player, First Of(Event Player.weapon));
 		"replay loop"
-		While(Event Player.replaying);
+		For Player Variable(Event Player, replayFrameCounter, 1, Event Player.totalFrames, 1);
 			Wait(0.016, Ignore Condition);
-			Event Player.replayFrameCounter += 1;
+			If (!Event Player.replaying);
+				Break;
+			End;
 			"change action after reaching"
 			If(Event Player.replayFrameCounter >= Event Player.throttleTimings[Round To Integer(Event Player.replayThrottleIndex / 1000, Down)
 				][Event Player.replayThrottleIndex % 1000]);
 				Event Player.replayThrottleIndex += 1;
-				If(Event Player.replayThrottleIndex >= 1000 * (Count Of(Event Player.throttles) - 1) + Count Of(Last Of(Event Player.throttles)));
-					Break;
-				End;
 			End;
 			If(Event Player.replayFrameCounter >= Event Player.facingTimings[Round To Integer(Event Player.replayFacingIndex / 1000, Down)
 				][Event Player.replayFacingIndex % 1000]);
@@ -1114,6 +1155,24 @@ rule("keep up with replay - replay frame before lower bound")
 	}
 }
 
+rule("populate button data SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		populateButtonData;
+	}
+
+	actions
+	{
+		disabled Small Message(All Players(All Teams), Custom String("{0} opened", Global.allButtons[Global.iVal2]));
+		Global.buttonDataText = Custom String("{0}: init {1} \n", Global.allButtons[Global.buttonSelected], Global.bot.initButtonStates[Global.buttonSelected]);
+		Global.arrayToText = Global.bot.buttonsTimings[Global.buttonSelected];
+		Call Subroutine(arrayToText);
+		Global.buttonDataText = Custom String("{0}{1}", Global.buttonDataText, Global.arrayAsText);
+	}
+}
+
 disabled rule("MENU")
 {
 	event
@@ -1184,7 +1243,7 @@ rule("menu up")
 			While(True);
 				Global.menuHoverIndex = (Global.menuHoverIndex + (Count Of(Global.menuCurrItems) - 1)) % Count Of(Global.menuCurrItems);
 				Call Subroutine(updateMenuString);
-				Wait(0.032, Abort When False);
+				Wait(0.064, Abort When False);
 			"while loop ends here"
 			End;
 		End;
@@ -1212,7 +1271,7 @@ rule("menu down")
 			While(True);
 				Global.menuHoverIndex = (Global.menuHoverIndex + 1) % Count Of(Global.menuCurrItems);
 				Call Subroutine(updateMenuString);
-				Wait(0.032, Abort When False);
+				Wait(0.096, Abort When False);
 			"while loop ends here"
 			End;
 		End;
@@ -1283,7 +1342,7 @@ rule("menu change val")
 
 	conditions
 	{
-		disabled Global.inMenu == True;
+		Global.inMenu == True;
 		Absolute Value(X Component Of(Throttle Of(Host Player))) > 0.300;
 	}
 
@@ -1300,9 +1359,10 @@ rule("menu change val")
 			End;
 			Call Subroutine(changeValue);
 			Wait(0.500, Abort When False);
+			Global.menuIncrementSign *= 5;
 			While(Global.menuIncrementSign * X Component Of(Throttle Of(Host Player)) < -0.300);
 				Call Subroutine(changeValue);
-				Wait(0.032, Ignore Condition);
+				Wait(0.096, Ignore Condition);
 			"while loop ends here"
 			End;
 		End;
@@ -1327,18 +1387,26 @@ rule("menu refresh text SUBROUTINE")
 			Modify Global Variable(menuCurrItems, Append To Array, Custom String("{0}{1}", Global.menuValueLabels[Global.iVal0],
 				Global.iVal1));
 		End;
+
 		For Global Variable(iVal0, Count Of(Global.menuCurrItems) - 1, -1, -1);
 			"manual stepping"
 			disabled Wait Until(!Is Button Held(Host Player, Button(Primary Fire)), 99999);
 			disabled Wait Until(Is Button Held(Host Player, Button(Primary Fire)), 99999);
 			If(Global.menuHoverIndex == Global.iVal0);
-				Global.menuString = Custom String("{0} {1} \n{2}", Global.menuCurrItems[Global.iVal0], Icon String(Arrow: Left),
+				If (Char In String(Global.menuCurrItems[Global.menuHoverIndex + 1], 0) != Custom String("\n"));
+					Global.menuString = Custom String(" \n{0}", Global.menuString);
+				End;
+				Global.menuString = Custom String("\n{0} {1} \n{2}", Global.menuCurrItems[Global.iVal0], Icon String(Arrow: Left),
 					Global.menuString);
+				If (Char In String(Global.menuCurrItems[Global.menuHoverIndex], 0) != Custom String("\n"));
+					Global.menuString = Custom String(" \n{0}", Global.menuString);
+				End;
 				disabled Global.menuString = Custom String("{0} < \n{1}", Global.menuCurrItems[Global.iVal0], Global.menuString);
 			Else;
-				Global.menuString = Custom String("{0} \n{1}", Global.menuCurrItems[Global.iVal0], Global.menuString);
+				Global.menuString = Custom String("{0}        {1}", Global.menuCurrItems[Global.iVal0], Global.menuString);
 			End;
 		End;
+		Global.menuString = Custom String("________________________________________{0}", Global.menuString);
 		disabled Global.menuString = String Slice(Global.menuString, 0, String Length(Global.menuString) - 1);
 		Call Subroutine(updateToolTip);
 	}
@@ -1354,7 +1422,8 @@ rule("update tool tip SUBROUTINE")
 
 	actions
 	{
-		Global.tooltip = Custom String("interact to exit menu");
+		Global.tooltip = Custom String("interact to exit menu\n");
+		Global.tooltip = Custom String("{0}{1} and {2} to change\n", Global.tooltip, Icon String(Arrow: Up), Icon String(Arrow: Down));
 		If(Global.menuHoverIndex < Count Of(Global.menuActions));
 			Global.tooltip = Custom String("{0} \nJump To activate", Global.tooltip);
 		Else;
@@ -1414,6 +1483,10 @@ rule("change value SUBROUTINE")
 		Else;
 		Global.timelineOpen = !Global.timelineOpen;
 		Else;
+		Call Subroutine(toggleButtonData);
+		Else;
+		Call Subroutine(changeButtonSelected);
+		Else;
 		Global.recordSpeed = (Global.recordSpeed - 10 + 100 + 10 * Global.menuIncrementSign) % 100 + 10;
 		Else;
 		Global.replaySpeed = (Global.replaySpeed - 10 + 100 + 10 * Global.menuIncrementSign) % 100 + 10;
@@ -1451,6 +1524,10 @@ rule("get value SUBROUTINE")
 		Global.iVal1 = Global.showData ? Custom String("<ON>") : Custom String("<OFF>");
 		Else;
 		Global.iVal1 = Global.timelineOpen ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Global.buttonDataOn ? Custom String("<ON>") : Custom String("<OFF>");
+		Else;
+		Global.iVal1 = Custom String("<{0}>", Global.allButtons[Global.buttonSelected]);
 		Else;
 		Global.iVal1 = Global.recordSpeed;
 		Else;
@@ -1644,6 +1721,7 @@ rule("begin record SUBROUTINE")
 		Global.logBuffer = Custom String("f {0}", 1000 * Global.bot.initFacing);
 		Call Subroutine(pushLog);
 		Call Subroutine(initBotArrays);
+
 		Global.bot.replaying = False;
 		Global.recording = True;
 		Remove From Array(Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)), Global.bot).replaying = True;
@@ -1710,7 +1788,7 @@ rule("begin record at frame SUBROUTINE")
 		End;
 		Stop Facing(Host Player);
 		Call Subroutine(exitMenu);
-		"disable inputs"
+		"disable abils"
 		If(Global.disableAbilitiesInRecord);
 			Call Subroutine(hostDisableAll);
 		End;
@@ -1718,10 +1796,14 @@ rule("begin record at frame SUBROUTINE")
 		Global.bot.attachee = Host Player;
 		Global.bot.replaying = False;
 		Global.recording = True;
+
 		Remove From Array(Filtered Array(All Players(All Teams), Is Dummy Bot(Current Array Element)), Global.bot).replaying = True;
+		
 		Wait Until(!(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload))), 99999);
 		Wait Until(Is Button Held(Host Player, Button(Interact)) && Is Button Held(Host Player, Button(Reload)), 99999);
+
 		All Players(All Teams).replaying = False;
+
 		Global.recording = False;
 		Global.menuEnabled = True;
 	}
@@ -1752,6 +1834,9 @@ rule("init bot data SUBROUTINE")
 		Global.bot.weaponTimings = Array(Empty Array);
 		"input buttons"
 		Global.bot.initButtonStates = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		"for shadowing"
+		Global.bot.lastButtonsState = Mapped Array(Global.allButtons, False);
+		Global.bot.buttonsState = Global.bot.initButtonStates;
 		Global.logBuffer = Custom String("{0} {", Global.logBuffer);
 		For Global Variable(iVal0, 0, Count Of(Global.allButtons), 1);
 			Global.logBuffer = Custom String("{0} {1}", Global.logBuffer, Global.bot.initButtonStates[Global.iVal0]);
@@ -2156,6 +2241,40 @@ rule("change frame SUBROUTINE")
 		Global.selectedFrame = (Global.selectedFrame + Global.bot.totalFrames + Global.menuIncrementSign) % Global.bot.totalFrames;
 		If(Global.timelineOpen);
 			Global.requestTimelineUpdate = True;
+		End;
+	}
+}
+
+rule("toggle button data SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		toggleButtonData;
+	}
+
+	actions
+	{
+		Global.buttonDataOn = !Global.buttonDataOn;
+		If(Global.buttonDataOn);
+			Call Subroutine(populateButtonData);
+		End;
+	}
+}
+
+rule("toggle button data SUBROUTINE")
+{
+	event
+	{
+		Subroutine;
+		changeButtonSelected;
+	}
+
+	actions
+	{
+		Global.buttonSelected = (Count Of(Global.allButtons) + Global.menuIncrementSign + Global.buttonSelected) % Count Of(Global.allButtons);
+		If(Global.buttonDataOn);
+			Call Subroutine(populateButtonData);
 		End;
 	}
 }
@@ -2841,5 +2960,65 @@ rule("convert top eight chars to num SUBROUTINE")
 		If(String Slice(Global.iVal9, 0, 1) == Custom String("-"));
 			Global.iVal5 = 0 - Global.iVal5;
 		End;
+	}
+}
+
+rule("array to text")
+{
+	event
+	{
+		Subroutine;
+		arrayToText;
+	}
+
+	actions
+	{
+		Global.arrayAsText = Custom String("");
+		Global.iVal2 = 0;
+		For Global Variable(iVal0, 0, Count Of(Global.arrayToText), 1);
+			For Global Variable(iVal1, 0, Count Of(Global.arrayToText[Global.iVal0]), 1);
+				If(String Length(Global.arrayAsText) - Global.iVal2 + String Length(Custom String("{0}", Global.arrayToText[Global.iVal0][Global.iVal1])) + 1 > Global.buttonDataTextWidth);
+					Global.iVal2 = String Length(Global.arrayAsText);
+					Global.arrayAsText = Custom String("{0} \n", Global.arrayAsText);
+				End;
+				Global.arrayAsText = Custom String("{0}{1}, ", Global.arrayAsText, Global.arrayToText[Global.iVal0][Global.iVal1]);
+			End;
+			Global.arrayAsText = Custom String("{0} \n \n", Global.arrayAsText);
+		End;
+
+		Global.arrayAsText = String Slice(Global.arrayAsText, 0, String Length(Global.arrayAsText) - 6);
+	}
+}
+
+disabled rule("update host player button state")
+{
+	event
+	{
+		Ongoing - Global;
+	}
+
+	conditions
+	{
+		Global.timelineOpen == True;
+		Global.recording == False;
+		Host Player.buttonsState != Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+	}
+
+	actions
+	{
+			"cant be bothered"
+		Global.iVal2 = Index Of Array Value(Global.allButtons, First Of(Filtered Array(Global.allButtons, Is Button Held(Host Player, Current Array Element) && 
+			!Host Player.buttonsState[Current Array Index])));
+		If(Global.iVal2 != -1);
+			Small Message(All Players(All Teams), Custom String("{0} opened", Global.allButtons[Global.iVal2]));
+			Global.buttonDataText = Custom String("{0}: \n", Global.allButtons[Global.iVal2]);
+			Global.arrayToText = Global.bot.buttonsTimings[Global.iVal2];
+			Call Subroutine(arrayToText);
+			Global.buttonDataText = Custom String("{0}{1}", Global.buttonDataText, Global.arrayAsText);
+			
+		End;
+		Host Player.buttonsState = Mapped Array(Global.allButtons, Is Button Held(Host Player, Current Array Element));
+		Wait(0.250, Ignore Condition);
+		Loop If Condition Is True;
 	}
 }
