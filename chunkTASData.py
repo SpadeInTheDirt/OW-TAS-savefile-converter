@@ -133,13 +133,19 @@ def parse_bool(s):
 '''
     formats a list of values into a normal workshop array (count <= 1000). no fancy tricks
 '''
-def format_list(l):
+def format_list(l, newline=False):
     ret = "Array("
     for e in l:
         ret += ("{elem},".format(elem=e))
+        if (newline):
+            ret += '\n'
 
     # trim last comma
-    ret = ret[0:len(ret) - 1]
+    if (newline):
+        ret = ret[0:len(ret) - 2]
+    else:
+        ret = ret[0:len(ret) - 1]
+    
     ret += ")"
 
     return ret
@@ -299,7 +305,7 @@ class Bot:
         part1.append( self.team )                                # 1
         part1.append( format_vectors(self.throttles) )           # 2
         part1.append( format_large_list(self.throttleTimings) )  # 3
-        part1 = format_list(part1)
+        part1 = format_list(part1, True)
 
         part2 = [ format_vectors(self.facings) ]                 # 4
         part2.append( format_large_list(self.facingTimings) )    # 5
@@ -315,7 +321,7 @@ class Bot:
         part2.append( str(self.initPos[1]) )                     # 14
         part2.append( str(self.initPos[2]) )                     # 15
         part2.append( str(self.frameCount) )                     # 16
-        part2 = format_list(part2)
+        part2 = format_list(part2, True)
 
         return (part1, part2)
 
@@ -385,6 +391,7 @@ class LogConverter(cmd.Cmd):
             botParts = [botPart.convert() for botPart in self.data if botPart]
 
             contents = ""
+            # bots
             subNum = 0
             for i in range(len(botParts)):
                 contents += to_subroutine(subNum, 0, botParts[i][0])
@@ -392,6 +399,10 @@ class LogConverter(cmd.Cmd):
                 contents += to_subroutine(subNum + 1, 1, botParts[i][1])
                 contents += "\n"
                 subNum += 2
+            
+            # map check
+            contents += 'rule("set map") { event { Ongoing - Global; } \n'
+            contents += 'actions {{ Global.map = Map({map}); }} }}'.format(map=self.played_map)
             
             print(contents)
         
