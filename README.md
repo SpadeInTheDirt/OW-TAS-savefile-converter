@@ -1,5 +1,5 @@
 # OW-TAS-savefile-converter
-v1.0.4
+v1.1.0
 This version is incompatible with saves before v0.2.0
 
 Converts global variables copied from Overwatch Workshop Inspector to a savefile that can be pasted into the game
