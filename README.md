@@ -1,10 +1,10 @@
 # OW-TAS-savefile-converter
-v1.0.2
+v1.0.4
 This version is incompatible with saves before v0.2.0
 
 Converts global variables copied from Overwatch Workshop Inspector to a savefile that can be pasted into the game
 
-run the converter, provide it with the pasted text, take the produced produced output and paste it at the bottom of the mode
+run chunkTASData.py with python, input the log's content, take the produced produced output and paste it at the bottom of the mode.
 
 ## Inspector Log format specifications:
 
